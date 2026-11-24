@@ -1,8 +1,8 @@
 package com.example.jpalab.tasks.t02;
 
-import com.example.jpalab.dto.ProductNamePrice;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -13,23 +13,15 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Тема 02, задание 06. Constructor expression (DTO-проекция).
+ * Тема 02, задание 06. Выборка одного поля: {@code List<String>} имён товаров.
  *
- * Целевой метод УЖЕ есть в ProductRepository (используем его):
- * <pre>{@code
- * @Query("""
- *       SELECT new com.example.jpalab.dto.ProductNamePrice(p.name, p.price)
- *       FROM Product p
- *       WHERE p.price >= :minPrice
- *       ORDER BY p.name ASC, p.id ASC
- *       """)
- * List<ProductNamePrice> namePricesAtLeast(@Param("minPrice") BigDecimal minPrice);
- * }</pre>
- * Тест проверяет содержимое record-ов.
+ * Целевой метод (добавляется студентом в {@link ProductRepository}):
+ * {@code List<String> findNamesByPriceBetween(@Param("from") BigDecimal from,
+ * @Param("to") BigDecimal to)} — JPQL-запрос, возвращающий только имена товаров
+ * с ценой строго между :from и :to, по возрастанию имени.
  *
- * Ловушка (комментарий): если в `new ...` указать неверное полное имя класса,
- * контекст Spring не поднимется — ошибка будет на старте приложения,
- * а не в момент вызова метода.
+ * До реализации метод отсутствует — тест падает с
+ * «Задание не реализовано» (через {@link TaskTestSupport}).
  */
 @DataJpaTest
 class TASK06Test {
@@ -46,25 +38,25 @@ class TASK06Test {
     }
 
     @Test
-    void constructorExpressionProjectsNameAndPrice() {
-        // 3 товара
-        save("A One", "100.00");
-        save("B Two", "200.00");
-        save("C Three", "300.00");
+    void singleFieldProjectionReturnsOnlyNames() {
+        // 4 товара; 100 и 200 — границы диапазона
+        save("Alpha", "100.00");
+        save("Beta", "150.00");
+        save("Gamma", "200.00");
+        save("Delta", "250.00");
 
-        // возвращаемый тип — список record-ов (не Object[])
-        List<ProductNamePrice> result = productRepository.namePricesAtLeast(
-                new BigDecimal("150.00"));
+        // (100, 200): строго между -> только товар с ценой 150
+        List<String> mid = TaskTestSupport.invoke(productRepository,
+                "findNamesByPriceBetween",
+                new Class<?>[] { BigDecimal.class, BigDecimal.class },
+                new BigDecimal("100.00"), new BigDecimal("200.00"));
+        assertThat(mid).containsExactly("Beta");
 
-        assertThat(result).hasSize(2);
-        assertThat(result).allSatisfy(item -> assertThat(item).isInstanceOf(ProductNamePrice.class));
-
-        // ORDER BY p.name ASC
-        assertThat(result).extracting(ProductNamePrice::name)
-                .containsExactly("B Two", "C Three");
-
-        // поля record заполнены корректно
-        assertThat(result.get(0).price()).isEqualByComparingTo("200.00");
-        assertThat(result.get(1).price()).isEqualByComparingTo("300.00");
+        // (99, 251): все 4 товара, отсортированы по имени (Delta < Gamma)
+        List<String> all = TaskTestSupport.invoke(productRepository,
+                "findNamesByPriceBetween",
+                new Class<?>[] { BigDecimal.class, BigDecimal.class },
+                new BigDecimal("99.00"), new BigDecimal("251.00"));
+        assertThat(all).containsExactly("Alpha", "Beta", "Delta", "Gamma");
     }
 }
