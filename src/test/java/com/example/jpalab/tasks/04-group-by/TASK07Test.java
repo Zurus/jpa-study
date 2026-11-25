@@ -1,6 +1,5 @@
 package com.example.jpalab.tasks.t04;
 
-import com.example.jpalab.dto.ProductNamePrice;
 import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
@@ -14,21 +13,18 @@ import java.util.List;
 
 import static com.example.jpalab.tasks.TaskTestSupport.invoke;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
 /**
- * Тема 04, задание 07. Constructor expression по группам.
+ * Тема 04, задание 07. AVG + HAVING: категории по средней цене.
  *
- * Целевой метод (добавить в ProductRepository):
- * <pre>{@code
- * @Query("""
- *       SELECT new com.example.jpalab.dto.ProductNamePrice(c.name, SUM(p.price))
- *       FROM Category c LEFT JOIN c.products p
- *       GROUP BY c.name ORDER BY c.name ASC
- *       """)
- * List<ProductNamePrice> categoryNameWithSumOfPrices();
- * }</pre>
- * Агрегат передаётся в конструктор так же, как обычное поле —
- * но пустая группа даёт NULL (record допускает null).
+ * Целевой метод (добавляется студентом в {@link ProductRepository}):
+ * {@code List<Object[]> categoryAvgPriceAbove(@Param("minAvg") BigDecimal minAvg)}
+ * — JPQL: LEFT JOIN от категории к товарам, GROUP BY по категории,
+ * HAVING по агрегату AVG (строгое «больше»), ORDER BY по имени категории.
+ *
+ * До реализации метод отсутствует — тест падает с
+ * «Задание не реализовано» (через {@link com.example.jpalab.tasks.TaskTestSupport}).
  */
 @DataJpaTest
 class TASK07Test {
@@ -49,26 +45,49 @@ class TASK07Test {
     }
 
     @Test
-    void constructorExpressionOverGroups() {
-        // "A": 10 + 20; "B": пусто
-        Category a = categoryRepository.saveAndFlush(Category.builder().name("A").build());
-        Category b = categoryRepository.saveAndFlush(Category.builder().name("B").build());
-        save("A1", "10.00", a);
-        save("A2", "20.00", a);
+    @SuppressWarnings("unchecked")
+    void avgWithHavingFiltersCategories() {
+        // "Books": 50 + 70  -> AVG 60
+        // "Gadgets": 100 + 300 -> AVG 200
+        // "Empty": нет товаров -> AVG NULL
+        Category books = categoryRepository.saveAndFlush(Category.builder().name("Books").build());
+        Category gadgets = categoryRepository.saveAndFlush(Category.builder().name("Gadgets").build());
+        Category empty = categoryRepository.saveAndFlush(Category.builder().name("Empty").build());
+        save("Book One", "50.00", books);
+        save("Book Two", "70.00", books);
+        save("Gadget One", "100.00", gadgets);
+        save("Gadget Two", "300.00", gadgets);
 
-        // результат — список record (не Object[])
-        List<ProductNamePrice> rows = invoke(productRepository,
-                "categoryNameWithSumOfPrices", new Class<?>[]{});
+        // (100): строго больше 100 -> только "Gadgets" (AVG 200)
+        List<Object[]> top = invoke(productRepository,
+                "categoryAvgPriceAbove",
+                new Class<?>[] { BigDecimal.class },
+                new BigDecimal("100"));
+        assertThat(top).hasSize(1);
+        assertThat(top.get(0)[0]).isEqualTo("Gadgets");
+        assertThat(((Number) top.get(0)[1]).doubleValue()).isCloseTo(200.00, offset(0.001));
 
-        assertThat(rows).hasSize(2);
+        // (50): две категории, порядок по имени
+        List<Object[]> both = invoke(productRepository,
+                "categoryAvgPriceAbove",
+                new Class<?>[] { BigDecimal.class },
+                new BigDecimal("50"));
+        assertThat(both).hasSize(2);
+        assertThat(both.get(0)[0]).isEqualTo("Books");
+        assertThat(((Number) both.get(0)[1]).doubleValue()).isCloseTo(60.00, offset(0.001));
+        assertThat(both.get(1)[0]).isEqualTo("Gadgets");
+        assertThat(((Number) both.get(1)[1]).doubleValue()).isCloseTo(200.00, offset(0.001));
 
-        // A: сумма 30
-        assertThat(rows.get(0).name()).isEqualTo("A");
-        assertThat(rows.get(0).price()).isNotNull();
-        assertThat(rows.get(0).price()).isEqualByComparingTo("30.00");
+        // (60): граница строгая -> "Books" (AVG ровно 60) исключена
+        List<Object[]> boundary = invoke(productRepository,
+                "categoryAvgPriceAbove",
+                new Class<?>[] { BigDecimal.class },
+                new BigDecimal("60"));
+        assertThat(boundary).hasSize(1);
+        assertThat(boundary.get(0)[0]).isEqualTo("Gadgets");
 
-        // B: пустая группа -> сумма NULL (зафиксировано)
-        assertThat(rows.get(1).name()).isEqualTo("B");
-        assertThat(rows.get(1).price()).isNull();
+        // пустая категория никогда не возвращается (AVG NULL не проходит HAVING)
+        assertThat(top).extracting(row -> ((Object[]) row)[0]).doesNotContain("Empty");
+        assertThat(both).extracting(row -> ((Object[]) row)[0]).doesNotContain("Empty");
     }
 }

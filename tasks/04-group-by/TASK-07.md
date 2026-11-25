@@ -1,18 +1,18 @@
-# Задание 07. Constructor expression по группам
+# Задание 07. AVG + HAVING: категории по средней цене
 - Тема: GROUP BY / HAVING
 - Difficulty: 7
-- Что нужно сделать: Добавьте в `ProductRepository` метод `@Query`, возвращающий `List<ProductNamePrice>` (record из `com.example.jpalab.dto`): по каждой категории — название и СУММА цен (constructor expression поверх групп с LEFT JOIN). Тест создан заранее (TASK07Test): категория с товарами, пустая категория.
+- Что нужно сделать: Добавьте в `ProductRepository` метод `@Query`, возвращающий `List<Object[]>`: для каждой категории (LEFT JOIN от категории к её товарам) строка [название категории, средняя цена её товаров]; остаются только категории, у которых средняя цена строго больше переданного значения (параметр `:minAvg`); сортировка по названию категории по возрастанию. Тест создан заранее (TASK07Test): две категории с товарами и одна пустая.
 - Стартовый код:
 ```java
 public interface ProductRepository extends JpaRepository<Product, Long> {
     // TODO: добавьте @Query с JPQL (GROUP BY / агрегаты, см. «Что нужно сделать»)
-    // метод должен иметь точно такое имя (без параметров):
-    List<ProductNamePrice> categoryNameWithSumOfPrices();
+    // метод должен иметь точно такую сигнатуру:
+    List<Object[]> categoryAvgPriceAbove(@Param("minAvg") BigDecimal minAvg);
 }
 ```
 - Тест для проверки:
 ```bash
-mvn -Dtest=com.example.jpalab.tasks.t04.TASK07Test#constructorExpressionOverGroups
+mvn -Dtest=com.example.jpalab.tasks.t04.TASK07Test#avgWithHavingFiltersCategories
 ```
-- Критерий приёмки: Тест: запись A — сумма 30 (`isEqualByComparingTo`); запись B — сумма NULL (record допускает null) — это ожидание ЗАФИКСИРОВАНО в тесте; тип результата — список record, а не `Object[]`; в SQL-логе `group by` и `sum` в одном запросе.
-- Подсказка (не решение): агрегат передаётся в конструктор так же, как обычное поле — но помните, что пустая группа даёт NULL.
+- Критерий приёмки: Тест: с (100) возвращается только категория со средней 200; с (50) — две категории в порядке имён (средние 60 и 200); с (60) — только категория со средней 200 (граница строгая, 60 исключена); пустая категория (AVG = NULL) никогда не возвращается; строка результата — `Object[]` [String, Number]; в SQL-логе `avg` и `group by` в одном запросе.
+- Подсказка (не решение): в HAVING допустимы агрегатные функции (в WHERE — нет), а у пустой группы средняя — NULL, и сравнение с NULL условие не проходит.

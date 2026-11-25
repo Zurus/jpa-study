@@ -4,9 +4,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * Вспомогательный класс для заранее созданных тестов заданий (темы 01–08).
+ * Вспомогательный класс для заранее созданных тестов заданий (темы 01–11).
  *
- * Тесты вызывают метод репозитория по имени и точной сигнатуре.
+ * Тесты вызывают метод целевого объекта (репозитория или сервиса) по имени и точной сигнатуре.
  * Если студент ещё не добавил метод в src/main/java, тест падает с понятным
  * сообщением об ошибке (а не ломает компиляцию всего модуля),
  * и все остальные тесты продолжают работать.
@@ -34,10 +34,10 @@ public final class TaskTestSupport {
             method = repository.getClass().getMethod(methodName, parameterTypes);
         } catch (NoSuchMethodException e) {
             throw new AssertionError(
-                    "Задание не реализовано: в репозитории нет метода " + methodName
+                    "Задание не реализовано: у целевого объекта нет метода " + methodName
                             + " с сигнатурой (" + describe(parameterTypes) + ")."
                             + " Добавьте метод с точно такой сигнатурой в src/main/java"
-                            + " (ProductRepository или CategoryRepository, см. условие задания).", e);
+                            + " (класс-цель указан в условии задания: ProductRepository / CategoryRepository / ProductLifecycleService).", e);
         }
         try {
             return (T) method.invoke(repository, args);
