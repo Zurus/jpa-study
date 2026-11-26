@@ -70,7 +70,7 @@ mvn -Dtest=com.example.jpalab.tasks.tNN.TASKXXTest#<имя метода тест
 - Тест самодостаточен: создаёт данные, вызывает целевой метод студента, проверяет результат и (где требуется) SQL-лог.
 - `answers/` не создаётся, markdown-решения не пишутся.
 
-## Темы: текущий скоуп (01–13, 10 заданий каждая)
+## Темы: текущий скоуп (01–14, 10 заданий каждая)
 
 ### 01. Derived queries (вывод запроса из имени метода)
 Предикаты (GreaterThan, Between, Containing, IgnoreCase, IsNull/IsNotNull), коннекторы And/Or, Top/First/Last, OrderBy, Sort, свойство-путь через ассоциацию (`CategoryName`), Pageable, NULL, N+1 у derived + LAZY, порядок параметров. Только имена методов — без `@Query`.
@@ -109,15 +109,17 @@ Transient/Persistent/Detached/Removed, persist vs save vs merge, dirty checking,
 Bean Validation на flush (не на setter), `@Size` на сущностях, Auditing (`@CreatedDate`/`@LastModifiedDate`, «пустой» flush не двигает поля), `@Version` (JPA-UPDATE поднимает version), оптимистичная блокировка (`OptimisticLockingFailureException` через repository.save, retry-паттерн), bulk `@Modifying` не трогает version. Без pessimistic locking `@Lock` (плановая тема 20), без soft delete (плановая тема 24), без second-level cache (плановая тема 21).
 
 ### 13. Specification: динамические предикаты
-`Specification<Product>` и `JpaSpecificationExecutor` (добавлен в `ProductRepository` в стартовом коде): первый предикат (eq), comparison (`>=`), динамический фильтр (null — «всегда верен»), композиция `and`/`or`/`not`, `Specification.where`, переиспользуемые спецификации, предикат по свойству-пути через ассоциацию (`category.name`, implicit-join), ловушка приоритета `and`/`or` (явная группировка), полный динамический фильтр (открытый диапазон цены + категория + остаток, NULL-категория), Specification + Pageable. Артефакт — класс `com.example.jpalab.repository.ProductSpecifications` (статические методы, публичный no-arg конструктор); тесты находят класс/методы рефлексивно (`TaskTestSupport.newInstance` + `invoke`). Только Specification: без прямого Criteria API и Querydsl; статические фильтры — 01–04, чистая пагинация — 08 (здесь только в сочетании со Specification).
+`Specification<Product>` и `JpaSpecificationExecutor` (добавлен в `ProductRepository` в стартовом коде): первый предикат (eq), comparison (`>=`), динамический фильтр (null — «всегда верен»), композиция `and`/`or`/`not`, `Specification.where`, переиспользуемые спецификации, предикат по свойству-пути через ассоциацию (`category.name`, implicit-join), ловушка приоритета `and`/`or` (явная группировка), полный динамический фильтр (открытый диапазон цены + категория + остаток, NULL-категория), Specification + Pageable. Артефакт — класс `com.example.jpalab.repository.ProductSpecifications` (статические методы, публичный no-arg конструктор); тесты находят класс/методы рефлексивно (`TaskTestSupport.newInstance` + `invoke`). Только Specification: без прямого Criteria API (тема 14) и Querydsl; статические фильтры — 01–04, чистая пагинация — 08 (здесь только в сочетании со Specification).
 
-## Планируемые темы (14–25) — ВНЕ текущего скоупа
-Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 130 заданий тем 01–13). Перечень плановый, порядок может меняться:
+### 14. Criteria API: программные запросы
+Программная сборка запроса без строкового JPQL: `CriteriaBuilder`, `CriteriaQuery<T>`, `Root`, `Path`, `Predicate`, `Join`; eq/диапазон/`in`-предикаты; выборка `Path` (скаляр `CriteriaQuery<String>`); `Join` (inner) и `JoinType.LEFT` с NULL-семантикой (товар без категории); сортировка `CriteriaQuery.orderBy` (тай-брейк при равных значениях); программная сборка динамического WHERE (условные предикаты, список имён); агрегаты `cb.sum` (NULL по пустой группе) и `cb.avg` (тип `Expression<Double>`); подзапрос `subquery` («категории с дорогим товаром»); GROUP BY + HAVING + orderBy по группе (аналог запроса темы 04 в программной форме — разрешённое исключение). Артефакт — методы сервиса `com.example.jpalab.service.ProductCriteriaService` (скелет сервиса с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`). Только Criteria API на прямую: без Specification (тема 13) и Querydsl (тема 18); логические запросы тем 01–04 разрешено повторять в форме Criteria; чистая пагинация — тема 08.
 
-- 14. Наследование сущностей (SINGLE_TABLE / JOINED / TABLE_PER_CLASS, @DiscriminatorColumn)
-- 15. Продвинутый маппинг типов (@Embedded, @Convert/@Converter, EnumType, составные ключи)
-- 16. Полный маппинг коллекций (@ElementCollection, @CollectionTable, @MapKey*, @OrderColumn)
-- 17. Criteria API (типобезопасные динамические запросы)
+## Планируемые темы (15–25) — ВНЕ текущего скоупа
+Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 140 заданий тем 01–14). Перечень плановый, порядок может меняться:
+
+- 15. Наследование сущностей (SINGLE_TABLE / JOINED / TABLE_PER_CLASS, @DiscriminatorColumn)
+- 16. Продвинутый маппинг типов (@Embedded, @Convert/@Converter, EnumType, составные ключи)
+- 17. Полный маппинг коллекций (@ElementCollection, @CollectionTable, @MapKey*, @OrderColumn)
 - 18. Querydsl (типобезопасный DSL)
 - 19. Транзакции в JPA (уровни изоляции, propagation, savepoints, длинные транзакции)
 - 20. Пессимистичная блокировка (@Lock PESSIMISTIC_READ/PESSIMISTIC_WRITE, lock timeout)
@@ -128,15 +130,16 @@ Bean Validation на flush (не на setter), `@Size` на сущностях, 
 - 25. Производительность: батчинг, fetch-стратегии, N+1 в сложных графах
 
 ## Границы тем (антидубли)
-- Темы 01–04: только derived / JPQL / native / GROUP BY. **Запрещены** Specification, Criteria API, Querydsl (темы 13, 17–18).
+- Темы 01–04: только derived / JPQL / native / GROUP BY. **Запрещены** Specification, Criteria API, Querydsl (темы 13, 14, 18).
 - Тема 07 (N+1) **не дублирует** темы кэширования: first-level cache упоминается только как контекст измерения, second-level cache — вообще отсутствует; кэширование — плановые темы 21/22.
 - Тема 08 (пагинация) **не дублирует** обычные фильтрации тем 01–04: каждое задание 08 обязательно использует Pageable/Slice/Sort; «просто фильтр» здесь не задаётся.
 - Тема 11 (жизненный цикл) **не дублирует** сценарии транзакций плановой темы 19: здесь — состояния, identity map и REQUIRES_NEW как контракт сервиса; изоляция, savepoints, матрица propagation — только тема 19.
 - Тема 12 (нюансы) **не содержит**: pessimistic locking `@Lock` (тема 20), soft delete (тема 24), second-level cache (тема 21).
-- Тема 13 (Specification) **не выходит за границы**: только `Specification`/`JpaSpecificationExecutor` — без прямого Criteria API (тема 17) и Querydsl (тема 18); без дублей статических derived queries (01) и JPQL (02); пагинация — только в сочетании Specification + Pageable (чистая пагинация — тема 08).
+- Тема 13 (Specification) **не выходит за границы**: только `Specification`/`JpaSpecificationExecutor` — без прямого Criteria API (тема 14) и Querydsl (тема 18); без дублей статических derived queries (01) и JPQL (02); пагинация — только в сочетании Specification + Pageable (чистая пагинация — тема 08).
+- Тема 14 (Criteria API) **не выходит за границы**: только API напрямую — без Specification (тема 13) и Querydsl (тема 18); повторение логических запросов тем 01–04 через Criteria разрешено (акцент на API, а не на запросе); чистая пагинация — тема 08; GROUP BY/HAVING — разрешённое исключение темы 04 в программной форме.
 - Тема 09 (bulk) и тема 12 не пересекаются: 09 — механика bulk-SQL и PC, 12 — семантика `@Version`/валидации; единственная стыковая точка (bulk не поднимает version) закреплена в задании 12/09.
 
 ## Важное (скоуп)
 - Проект покрывает практическую Spring Data JPA / Hibernate-часть курса, а не весь курс. За кадром: SQL-основы, JDBC, проектирование БД, кластеры и облачные БД.
-- Текущий релиз: ровно 13 тем × 10 заданий = 130 заданий, 130 заранее созданных тестов. Тем 14–25 в репозитории нет и их не создавать без отдельного запроса.
+- Текущий релиз: ровно 14 тем × 10 заданий = 140 заданий, 140 заранее созданных тестов. Тем 15–25 в репозитории нет и их не создавать без отдельного запроса.
 - `answers/` не создаётся; каждое задание проверяется unit-тестом.

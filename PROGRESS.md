@@ -1,6 +1,6 @@
 # PROGRESS.md — JPA Lab
 
-- Дата: 2026-11-26. (1) Полный аудит и нормализация (12 тем × 10 заданий). (2) Создана тема 13 (Specification).
+- Дата: 2026-11-26. (1) Полный аудит и нормализация (12 тем × 10 заданий). (2) Создана тема 13 (Specification). (3) Создана тема 14 (Criteria API).
 - Команда: `mvn test` (из корня `jpa-lab`).
 
 ## Аудит (что проверялось)
@@ -38,23 +38,23 @@
 6. **Точечные правки**: подсказка 02/04 (готовая формула убрана), `REQUIRES_NEW` → `@Transactional` в 05/10, имя метода в 05/09, «Критерии приёмки» → «Критерий приёмки» (тема 09), 10/01 — устранена неоднозначность порядка.
 7. **Документы**: `PROJECT_SPEC.md` — полная спецификация (технологии, сущности, принцип обучения, правила тестов, формат, правила генерации, темы 01–12, плановые 13–25, границы тем, скоуп); `PROGRESS.md` — этот файл.
 
-## Состояние (после темы 13)
+## Состояние (после темы 14)
 
-- Тем: **13** (01–13) × ровно 10 заданий = **130** `TASK-XX.md` (в каждой теме `TASK-01.md`…`TASK-10.md`).
-- Тестовых классов: **130** (`TASK01Test`…`TASK10Test` в пакетах `com.example.jpalab.tasks.t01`…`t13`), по одному `@Test` на задание; каталоги тематические, сверка — по каталогу темы.
-- Связка задание ↔ тест: **130/130** (темы 01–12 проверены скриптом при аудите; тема 13 — команды `-Dtest` вписаны в файлы по реальным именам методов тестов).
-- Тесты, зелёные на базовой линии: **0** (тема 13 проверена: временная корректная реализация `ProductSpecifications` → 10/10 зелёных; реализация удалена, тесты снова красные).
+- Тем: **14** (01–14) × ровно 10 заданий = **140** `TASK-XX.md` (в каждой теме `TASK-01.md`…`TASK-10.md`).
+- Тестовых классов: **140** (`TASK01Test`…`TASK10Test` в пакетах `com.example.jpalab.tasks.t01`…`t14`), по одному `@Test` на задание; каталоги тематические, сверка — по каталогу темы.
+- Связка задание ↔ тест: **140/140** (темы 01–12 проверены скриптом при аудите; темы 13–14 — команды `-Dtest` вписаны по реальным именам методов тестов, сверено скриптом).
+- Тесты, зелёные на базовой линии: **0** (темы 13–14 проверены: временные корректные реализации артефактов → 10/10 зелёных; реализации удалены, тесты снова красные; ловушки тем 13–14 проверены намеренно-неверными реализациями).
 - `answers/`: отсутствует (не создаётся); markdown-решений нет.
-- Стартовый код `src/main`: без готовых решений по заданиям; `ProductRepository` — `JpaRepository + JpaSpecificationExecutor` + `findByCategory` + `ProductSummary` (executor — стартовая инфраструкция темы 13, не решение).
-- Дубли/границы: проверены (Specification/Criteria/Querydsl вне 01–04 и вне 13 напрямую; `@Lock`/soft delete/L2-кэш вне 12; N+1/пагинация без дублей; тема 13 — только Specification + JpaSpecificationExecutor).
+- Стартовый код `src/main`: без готовых решений по заданиям; `ProductRepository` — `JpaRepository + JpaSpecificationExecutor` + `findByCategory` + `ProductSummary` (executor — стартовая инфраструкция темы 13, не решение); `ProductCriteriaService` — скелет (`@Service` + `@PersistenceContext EntityManager`) для темы 14.
+- Дубли/границы: проверены (Specification/Criteria/Querydsl вне 01–04 и вне 13/14 напрямую; `@Lock`/soft delete/L2-кэш вне 12; N+1/пагинация без дублей; тема 13 — только Specification + JpaSpecificationExecutor; тема 14 — только Criteria API на прямую).
 
-## Итог `mvn test` (после темы 13)
+## Итог `mvn test` (после темы 14)
 
 ```
-Tests run: 130, Failures: 130, Errors: 0, Skipped: 0
+Tests run: 140, Failures: 140, Errors: 0, Skipped: 0
 ```
 
-Все 130 тестов красны **как задумано** (нет кода студента; 10 тестов темы 13 падают с сообщением «Задание не реализовано: класс …ProductSpecifications не найден»); ошибок сборки и «неожиданных» сбоев нет.
+Все 140 тестов красны **как задумано** (нет кода студента; 10 тестов темы 13 падают с «Задание не реализовано: класс …ProductSpecifications не найден», 10 тестов темы 14 — с «Задание не реализовано: у целевого объекта нет метода …»); ошибок сборки и «неожиданных» сбоев нет.
 
 ## Тема 13: Specification: динамические предикаты (создана 2026-11-26)
 
@@ -82,8 +82,33 @@ Tests run: 130, Failures: 130, Errors: 0, Skipped: 0
 
 **Эмпирическая валидация:** временная корректная реализация → 10/10 зелёных → реализация удалена; две ловушки (09 — неверная группировка, 10 — принудительный join) проверены намеренно-неверными реализациями (обе дают красный тест). В тестах и в `TASK-XX.md` нет готовых предикатов/выражений.
 
+## Тема 14: Criteria API: программные запросы (создана 2026-11-26)
+
+**Созданные файлы:**
+- `tasks/14-criteria-api/README.md` + `TASK-01.md`…`TASK-10.md` (формат спецификации).
+- `src/test/java/com/example/jpalab/tasks/14-criteria-api/TASK01Test.java`…`TASK10Test.java` (пакет `com.example.jpalab.tasks.t14`, `@DataJpaTest` + `@Import(ProductCriteriaService.class)`).
+
+**Изменения в стартовом коде:**
+- `src/main/java/com/example/jpalab/service/ProductCriteriaService.java` — новый сервис-скелет: `@Service` + `@PersistenceContext EntityManager` (стартовая инфраструктура, без методов-решений).
+
+**Контракт (артефакт студента):** методы `com.example.jpalab.service.ProductCriteriaService` — запрос строится через `CriteriaBuilder`/`CriteriaQuery` и выполняется через `EntityManager`:
+| # | Difficulty | Метод | Что проверяет |
+|---|-----------|-------|----------------|
+| 01 | 1 | `List<Product> findByName(String)` | `CriteriaQuery<Product>` + eq по name (точное совпадение) |
+| 02 | 2 | `List<Product> findPriceBetween(BigDecimal, BigDecimal)` | два comparison-предиката через `cb.and`, границы включаются |
+| 03 | 3 | `List<String> findNamesByStockAtLeast(int)` | выборка `Path` (скаляр `CriteriaQuery<String>`), `>=` включительно |
+| 04 | 4 | `List<Product> findByCategoryName(String)` | `Join` по many-to-one (inner): товар без категории исключён |
+| 05 | 5 | `List<Product> findByCategoryNameLeftJoin(String)` | `JoinType.LEFT` + null-фильтр: null — все, включая товар без категории (ловушка: inner join — проверено, тест красный) |
+| 06 | 6 | `List<Product> findSortedPriceDescNameAsc(BigDecimal)` | `orderBy(цена DESC, имя ASC)`; данные против порядка вставки (ловушка: без тай-брейка — проверено, тест красный) |
+| 07 | 7 | `List<Product> findDynamic(List<String>, BigDecimal, boolean)` | программная сборка WHERE: IN-имена (null/пустой — выключен), `price >=`, `stock > 0` |
+| 08 | 8 | `BigDecimal sumPricesInCategory(String)` | `cb.sum` + join-категория; пустая группа → null |
+| 09 | 9 | `List<Product> findInCategoriesWithPriceAtLeast(BigDecimal)` | подзапрос: все товары категорий, где есть товар `>= threshold` (ловушка: наивный `price >=` — проверено, тест красный) |
+| 10 | 10 | `List<String> findCategoryNamesWithAveragePriceAtLeast(BigDecimal)` | GROUP BY + HAVING на `cb.avg` (тип `Expression<Double>`), orderBy по группе; NULL-категория без группы (ловушка: без HAVING — проверено, тест красный) |
+
+**Эмпирическая валидация:** временная корректная реализация → 10/10 зелёных → реализация удалена (в `src/main` остался только скелет); 4 ловушки (05, 06, 09, 10) проверены намеренно-неверными реализациями — все дают красный тест. В тестах и в `TASK-XX.md` нет готовых запросов/выражений (подсказка — одна строка).
+
 ## План (следующие шаги)
 
-1. Студент реализует задания по `TASK-XX.md` (репозитории / `ProductService` / `ProductLifecycleService` / `ProductVersioningService` / `ProductSpecifications` / сущности / DTO) — красные тесты становятся зелёными; проверка: команда из задания или полный `mvn test`.
-2. Плановые темы 14–25 (из `PROJECT_SPEC.md`) — создавать только по отдельному запросу; на каждую — ровно 10 заданий по тем же правилам.
+1. Студент реализует задания по `TASK-XX.md` (репозитории / `ProductService` / `ProductLifecycleService` / `ProductVersioningService` / `ProductSpecifications` / `ProductCriteriaService` / сущности / DTO) — красные тесты становятся зелёными; проверка: команда из задания или полный `mvn test`.
+2. Плановые темы 15–25 (из `PROJECT_SPEC.md`) — создавать только по отдельному запросу; на каждую — ровно 10 заданий по тем же правилам.
 3. Коммит изменений (тесты, tasks/, docs, src/main).
