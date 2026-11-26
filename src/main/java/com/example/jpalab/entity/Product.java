@@ -1,6 +1,8 @@
 package com.example.jpalab.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
@@ -8,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -24,6 +27,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 @Entity
 @Table(name = "products")
@@ -65,4 +72,20 @@ public class Product {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
+
+    // Тема 15 (@ElementCollection): коллекции простых значений (стартовый код, не решение).
+    // Методы-артефакты студента, работающие с ними, — в ProductElementCollectionService.
+
+    @ElementCollection
+    @CollectionTable(name = "product_tags", joinColumns = @JoinColumn(name = "product_id"))
+    @Column(name = "tag")
+    @Builder.Default
+    private Set<String> tags = new HashSet<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_attributes", joinColumns = @JoinColumn(name = "product_id"))
+    @MapKeyColumn(name = "attr_key")
+    @Column(name = "attr_value")
+    @Builder.Default
+    private Map<String, String> attributes = new HashMap<>();
 }
