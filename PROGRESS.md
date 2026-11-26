@@ -1,7 +1,7 @@
 # PROGRESS — jpa-lab
 
 > Рабочее состояние проекта. Последнее обновление — после создания темы 15
-> (15-element-collection) по явному запросу.
+> (16-many-to-many) по явному запросу.
 
 ## Текущий статус
 
@@ -15,27 +15,31 @@
   тест вызывает его отражённо через `TaskTestSupport`.
 - `answers/`: не создаётся и не заполняется.
 
-## Состояние (после аудита и создания тем 13–15)
+## Состояние (после аудита и создания тем 13–16)
 
-- Текущий охват: 15 тем (01–15), по 10 заданий = 150 заданий и 150
-  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t15`.
+- Текущий охват: 16 тем (01–16), по 10 заданий = 160 заданий и 160
+  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t16`.
 - Тестовые классы: `src/test/java/com/example/jpalab/tasks/<тема>/TASK01Test.java`…`TASK10Test.java`;
-  пакеты Java `com.example.jpalab.tasks.t01`…`t15`.
-- Стартовый код: сущности `Product` / `Category` (у `Product` —
+  пакеты Java `com.example.jpalab.tasks.t01`…`t16`.
+- Стартовый код: сущности `Product` / `Category` / `Tag` (у `Product` —
   `tags: Set<String>` и `attributes: Map<String,String>` через
-  `@ElementCollection`, тема 15), `ProductRepository`
+  `@ElementCollection`, тема 15, и `productTags: Set<Tag>` — владелец
+  `@ManyToMany`, таблица `product_tag_link`, тема 16; у `Tag` —
+  `products: Set<Product>` с `mappedBy = "productTags"`),
+  `ProductRepository`
   (JpaRepository + JpaSpecificationExecutor + findByCategory +
-  ProductSummary), пустой `CategoryRepository`, сервисы-заготовки
+  ProductSummary), пустые `CategoryRepository` и `TagRepository`, сервисы-заготовки
   (`ProductService`, `ProductLifecycleService`, `ProductVersioningService`,
-  `ProductCriteriaService`, `ProductElementCollectionService`).
+  `ProductCriteriaService`, `ProductElementCollectionService`,
+  `ProductTagService`).
 - Стартовые методы в репозиториях, раскрывающие решения, удалены
   (в т.ч. «примерные» методы и 14 legacy-тестов, их использующих).
-- Все 150 тестов отрабатывают модель «красный до / зелёный после»:
-  в базовом состоянии все 150 красные («Задание не реализовано»).
+- Все 160 тестов отрабатывают модель «красный до / зелёный после»:
+  в базовом состоянии все 160 красные («Задание не реализовано»).
 - Все `tasks/*/README.md` и `TASK-XX.md` в одном формате: стартовый код,
   точная команда `mvn -Dtest=<класс>#<метод>`, критерий приёмки,
   подсказка без решения.
-- `verify-links.sh` проверяет все 150 ссылок на тесты: ошибок 0.
+- `verify-links.sh` проверяет все 160 ссылок на тесты: ошибок 0.
 
 ## Темы (текущий охват)
 
@@ -81,7 +85,7 @@ transient/detached, @Version.
 ### 12. Продвинутые темы (10)
 `ProductRepository` + `ProductLifecycleService`: @Lob, @Transient,
 расширения/конвертеры, @DynamicUpdate/@DynamicInsert,
-@Where/@SQLRestriction, @SQLDelete (без мягкого удаления — тема 25).
+@Where/@SQLRestriction, @SQLDelete (без мягкого удаления — тема 26).
 
 ### 13. Specification (10)
 Студентский артефакт: `com.example.jpalab.repository.ProductSpecifications`
@@ -126,27 +130,50 @@ precedence `name AND (price OR stock)`; открытый диапазон + ка
 Важный факт Hibernate 6: путь `a.key`/`a.value` по элементной Map не
 поддерживается (UnknownPathException); работают функции `KEY(a)`/`VALUE(a)`.
 
+### 16. @ManyToMany (10)
+Студентский артефакт: методы
+`com.example.jpalab.service.ProductTagService` (стартовый код —
+`@Service` + `@PersistenceContext EntityManager`, методов нет);
+стартовый код сущностей: `Tag` (`id`, `name`, `products: Set<Product>` —
+`mappedBy = "productTags"`) и поле-владелец `Product.productTags: Set<Tag>`
+(`@ManyToMany` + `@JoinTable(name = "product_tag_link")`); пустой
+`TagRepository`. Имя поля — `productTags`, потому что `tags` в `Product`
+уже занято строковой коллекцией темы 15:
+`addTagToProduct(Long, Tag)`; `removeTagFromProduct(Long, Tag)`;
+`linkBothSides(Long, Tag)` (двунаправленная согласованность в PC);
+`unlinkBothSides(Long, Tag)`; `deleteTagKeepsProducts(Long)` (cascade = NONE,
+сначала обрыв связей со стороны владельца; `tag.getProducts()` может быть
+stale — надёжнее JPQL-join); `findProductIdsByTagName(String)`;
+`findAllWithTags()` (LEFT JOIN FETCH, ровно 1 SQL — N+1 на `@ManyToMany`);
+`findProductsSharingTagWith(Long)` (distinct, сам продукт исключён);
+`findSharedTagNames(Long, Long)` (пересечение, симметрично);
+`syncProductTags(Long, Set)` (полная замена связей). Ловушки проверены
+эмпирически: одно-стороннее link/unlink → T03/T04 красные; наивный
+`em.remove(tag)` → T05 красный (FK на `product_tag_link`); fetch без join
+→ T07 красный (1+N запросов); включение самого продукта → T08 красный;
+add-only sync → T10 красный.
+
 ## Проверено командой
 
 ```bash
 cd D:/study/SQLTrain/jpa-lab
-bash verify-links.sh     # 150 ссылок, ошибок 0
-mvn test                 # Tests run: 150, Failures: 150, Errors: 0, Skipped: 0
+bash verify-links.sh     # 160 ссылок, ошибок 0
+mvn test                 # Tests run: 160, Failures: 160, Errors: 0, Skipped: 0
 ```
 
 ## План (только по явным запросам)
 
-Темы 16–26, по 10 заданий каждая, те же правила (10 тестов заранее,
+Темы 17–27, по 10 заданий каждая, те же правила (10 тестов заранее,
 красный до / зелёный после, формат TASK-XX.md):
 
-16. Наследование сущностей
-17. Продвинутый маппинг типов
-18. Полный маппинг коллекций
-19. Querydsl
-20. Транзакции
-21. Пессимистические блокировки
-22. Second-level cache
-23. Query cache
-24. Hibernate Event Listeners
-25. Soft delete
-26. Производительность
+17. Наследование сущностей
+18. Продвинутый маппинг типов
+19. Полный маппинг коллекций
+20. Querydsl
+21. Транзакции
+22. Пессимистические блокировки
+23. Second-level cache
+24. Query cache
+25. Hibernate Event Listeners
+26. Soft delete
+27. Производительность

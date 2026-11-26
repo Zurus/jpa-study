@@ -11,7 +11,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapKeyColumn;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotBlank;
@@ -88,4 +90,17 @@ public class Product {
     @Column(name = "attr_value")
     @Builder.Default
     private Map<String, String> attributes = new HashMap<>();
+
+    // Тема 16 (@ManyToMany): связь со сущностью Tag. Product — владелец
+    // (FK в промежуточной таблице product_tag_link), Tag.products — mappedBy.
+    // Имя поля productTags (а не tags) — имя tags уже занято строковой
+    // коллекцией темы 15. Методы-артефакты студента — в ProductTagService.
+
+    @ManyToMany
+    @JoinTable(
+            name = "product_tag_link",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    @Builder.Default
+    private Set<Tag> productTags = new HashSet<>();
 }

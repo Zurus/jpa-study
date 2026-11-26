@@ -15,9 +15,10 @@
 - spring-boot-starter-validation (Bean Validation)
 
 ## Сущности (стартовый код, не менять структуру)
-- `Product`: id (IDENTITY), name, price, stockQuantity, createdAt, updatedAt, version (`@Version`), category (`@ManyToOne @JoinColumn @Lazy`), tags (`Set<String>`, `@ElementCollection`, таблица `product_tags`), attributes (`Map<String, String>`, `@ElementCollection` + `@MapKeyColumn`, таблица `product_attributes`) — тема 15
+- `Product`: id (IDENTITY), name, price, stockQuantity, createdAt, updatedAt, version (`@Version`), category (`@ManyToOne @JoinColumn @Lazy`), tags (`Set<String>`, `@ElementCollection`, таблица `product_tags`), attributes (`Map<String, String>`, `@ElementCollection` + `@MapKeyColumn`, таблица `product_attributes`) — тема 15, productTags (`Set<Tag>`, владелец `@ManyToMany` + `@JoinTable(name = "product_tag_link")`) — тема 16
 - `Category`: id, name, products (`@OneToMany(mappedBy = "category", cascade = ALL, orphanRemoval = true)`)
 - `Order`: id, orderDate, product (`@ManyToOne`)
+- `Tag` (тема 16, таблица `tags`): id, name, products (`Set<Product>`, `@ManyToMany(mappedBy = "productTags")`)
 - DTO: `ProductSummary` (open interface в `ProductRepository`), `ProductNamePrice` (record), `ProductDto` (класс с конструктором)
 
 ## Принцип обучения
@@ -38,7 +39,7 @@
 - `@Modifying`: проверка изменения данных, состояния PC (clearAutomatically/flushAutomatically) и числа затронутых строк.
 - `@Version`: `OptimisticLockingFailureException` при конкурентном обновлении через `productRepository.save` (граница Spring Data); JPA `OptimisticLockException` — через `em.merge`.
 - **Тесты не раскрывают решение**: в тесте и в `TASK-XX.md` нет текста готового запроса/реализации; «Стартовый код» — `// TODO` + требуемая сигнатура; «Подсказка» — одна строка без готового выражения.
-- Структура тестов: каталоги `src/test/java/com/example/jpalab/tasks/<NN>-<тема>/`, пакеты `com.example.jpalab.tasks.t01`…`t15`. Каталог соответствует теме, пакет — теме; сверка задания с тестом идёт по каталогу темы (имя класса `TASK01Test` совпадает во всех темах).
+- Структура тестов: каталоги `src/test/java/com/example/jpalab/tasks/<NN>-<тема>/`, пакеты `com.example.jpalab.tasks.t01`…`t16`. Каталог соответствует теме, пакет — теме; сверка задания с тестом идёт по каталогу темы (имя класса `TASK01Test` совпадает во всех темах).
 - Общий помощник: `TaskTestSupport.invoke(repository|service, methodName, Class<?>[] parameterTypes, Object... args)` — рефлексивный вызов метода студента; нет метода → `AssertionError` «Задание не реализовано: …». `TaskTestSupport.newInstance(className)` — рефлексивное создание класса-артефакта студента по FQCN (тема 13: `ProductSpecifications`); нет класса → `AssertionError` «Задание не реализовано».
 - `answers/` не создаётся; решений в `tasks/`, `src/`, тестах нет.
 
@@ -70,7 +71,7 @@ mvn -Dtest=com.example.jpalab.tasks.tNN.TASKXXTest#<имя метода тест
 - Тест самодостаточен: создаёт данные, вызывает целевой метод студента, проверяет результат и (где требуется) SQL-лог.
 - `answers/` не создаётся, markdown-решения не пишутся.
 
-## Темы: текущий скоуп (01–15, 10 заданий каждая)
+## Темы: текущий скоуп (01–16, 10 заданий каждая)
 
 ### 01. Derived queries (вывод запроса из имени метода)
 Предикаты (GreaterThan, Between, Containing, IgnoreCase, IsNull/IsNotNull), коннекторы And/Or, Top/First/Last, OrderBy, Sort, свойство-путь через ассоциацию (`CategoryName`), Pageable, NULL, N+1 у derived + LAZY, порядок параметров. Только имена методов — без `@Query`.
@@ -103,47 +104,51 @@ Bulk UPDATE/DELETE через `@Query`, число затронутых стро
 Четыре формы: open interface, record (constructor expression), класс с конструктором, скалярные `Object[]`; проекции с JOIN / LEFT JOIN (null-категория), сортировка по полям JOIN, порядок аргументов конструкторного выражения, один запрос в двух формах. Новые DTO студент создаёт сам в `com.example.jpalab.dto`.
 
 ### 11. Жизненный цикл Entity
-Transient/Persistent/Detached/Removed, persist vs save vs merge, dirty checking, identity map (одна транзакция — одна инстанция; разные транзакции — разные), `em.clear()`, rollback и IDENTITY-ключ. Актор — сервис `ProductLifecycleService` (каждый метод — REQUIRES_NEW); тесты `@SpringBootTest` + `TransactionTemplate`. Транзакционные свойства (уровни изоляции, savepoints, матрица propagation) — не тема 11 (плановая тема 20).
+Transient/Persistent/Detached/Removed, persist vs save vs merge, dirty checking, identity map (одна транзакция — одна инстанция; разные транзакции — разные), `em.clear()`, rollback и IDENTITY-ключ. Актор — сервис `ProductLifecycleService` (каждый метод — REQUIRES_NEW); тесты `@SpringBootTest` + `TransactionTemplate`. Транзакционные свойства (уровни изоляции, savepoints, матрица propagation) — не тема 11 (плановая тема 21).
 
 ### 12. Нюансы (Bean Validation / Auditing / @Version)
-Bean Validation на flush (не на setter), `@Size` на сущностях, Auditing (`@CreatedDate`/`@LastModifiedDate`, «пустой» flush не двигает поля), `@Version` (JPA-UPDATE поднимает version), оптимистичная блокировка (`OptimisticLockingFailureException` через repository.save, retry-паттерн), bulk `@Modifying` не трогает version. Без pessimistic locking `@Lock` (плановая тема 21), без soft delete (плановая тема 25), без second-level cache (плановая тема 22).
+Bean Validation на flush (не на setter), `@Size` на сущностях, Auditing (`@CreatedDate`/`@LastModifiedDate`, «пустой» flush не двигает поля), `@Version` (JPA-UPDATE поднимает version), оптимистичная блокировка (`OptimisticLockingFailureException` через repository.save, retry-паттерн), bulk `@Modifying` не трогает version. Без pessimistic locking `@Lock` (плановая тема 22), без soft delete (плановая тема 26), без second-level cache (плановая тема 23).
 
 ### 13. Specification: динамические предикаты
 `Specification<Product>` и `JpaSpecificationExecutor` (добавлен в `ProductRepository` в стартовом коде): первый предикат (eq), comparison (`>=`), динамический фильтр (null — «всегда верен»), композиция `and`/`or`/`not`, `Specification.where`, переиспользуемые спецификации, предикат по свойству-пути через ассоциацию (`category.name`, implicit-join), ловушка приоритета `and`/`or` (явная группировка), полный динамический фильтр (открытый диапазон цены + категория + остаток, NULL-категория), Specification + Pageable. Артефакт — класс `com.example.jpalab.repository.ProductSpecifications` (статические методы, публичный no-arg конструктор); тесты находят класс/методы рефлексивно (`TaskTestSupport.newInstance` + `invoke`). Только Specification: без прямого Criteria API (тема 14) и Querydsl; статические фильтры — 01–04, чистая пагинация — 08 (здесь только в сочетании со Specification).
 
 ### 14. Criteria API: программные запросы
-Программная сборка запроса без строкового JPQL: `CriteriaBuilder`, `CriteriaQuery<T>`, `Root`, `Path`, `Predicate`, `Join`; eq/диапазон/`in`-предикаты; выборка `Path` (скаляр `CriteriaQuery<String>`); `Join` (inner) и `JoinType.LEFT` с NULL-семантикой (товар без категории); сортировка `CriteriaQuery.orderBy` (тай-брейк при равных значениях); программная сборка динамического WHERE (условные предикаты, список имён); агрегаты `cb.sum` (NULL по пустой группе) и `cb.avg` (тип `Expression<Double>`); подзапрос `subquery` («категории с дорогим товаром»); GROUP BY + HAVING + orderBy по группе (аналог запроса темы 04 в программной форме — разрешённое исключение). Артефакт — методы сервиса `com.example.jpalab.service.ProductCriteriaService` (скелет сервиса с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`). Только Criteria API на прямую: без Specification (тема 13) и Querydsl (тема 19); логические запросы тем 01–04 разрешено повторять в форме Criteria; чистая пагинация — тема 08.
+Программная сборка запроса без строкового JPQL: `CriteriaBuilder`, `CriteriaQuery<T>`, `Root`, `Path`, `Predicate`, `Join`; eq/диапазон/`in`-предикаты; выборка `Path` (скаляр `CriteriaQuery<String>`); `Join` (inner) и `JoinType.LEFT` с NULL-семантикой (товар без категории); сортировка `CriteriaQuery.orderBy` (тай-брейк при равных значениях); программная сборка динамического WHERE (условные предикаты, список имён); агрегаты `cb.sum` (NULL по пустой группе) и `cb.avg` (тип `Expression<Double>`); подзапрос `subquery` («категории с дорогим товаром»); GROUP BY + HAVING + orderBy по группе (аналог запроса темы 04 в программной форме — разрешённое исключение). Артефакт — методы сервиса `com.example.jpalab.service.ProductCriteriaService` (скелет сервиса с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`). Только Criteria API на прямую: без Specification (тема 13) и Querydsl (тема 20); логические запросы тем 01–04 разрешено повторять в форме Criteria; чистая пагинация — тема 08.
 
 ### 15. Элементные коллекции (@ElementCollection)
-Коллекции простых значений (не сущностей): `Product.tags` — `Set<String>` через `@ElementCollection` + `@CollectionTable` + `@Column`; `Product.attributes` — `Map<String, String>` через `@ElementCollection` + `@CollectionTable` + `@MapKeyColumn` + `@Column` (обе уже объявлены в стартовом коде сущности, с `@Builder.Default`). Материализация: одна строка на элемент в служебной таблице (ключ Map — отдельная колонка). Материалы: добавление/удаление одного элемента (Set-уникальность, no-op для отсутствующего), запись/удаление пары Map (замена значения), поиск по элементу Set (join, точное совпадение), поиск по паре Map (функции `KEY(a)`/`VALUE(a)` — путь `a.key`/`a.value` в Hibernate 6 недоступен), union по списку тегов (защита от пустого списка), полная синхронизация Set (diff управляемой коллекции), merge Map (сохранённые ключи не теряются), persist transient-owner с заполненными коллекциями (дефолтный каскад PERSIST). Артефакт — методы сервиса `com.example.jpalab.service.ProductElementCollectionService` (скелет с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`, состояние БД — native-SELECT по таблицам `product_tags`/`product_attributes`). Только `@ElementCollection`: без `@OneToMany`/`@ManyToMany`, без отдельных сущностей для элементов; `@OrderColumn`/`@MapKey*` — плановая тема 18.
+Коллекции простых значений (не сущностей): `Product.tags` — `Set<String>` через `@ElementCollection` + `@CollectionTable` + `@Column`; `Product.attributes` — `Map<String, String>` через `@ElementCollection` + `@CollectionTable` + `@MapKeyColumn` + `@Column` (обе уже объявлены в стартовом коде сущности, с `@Builder.Default`). Материализация: одна строка на элемент в служебной таблице (ключ Map — отдельная колонка). Материалы: добавление/удаление одного элемента (Set-уникальность, no-op для отсутствующего), запись/удаление пары Map (замена значения), поиск по элементу Set (join, точное совпадение), поиск по паре Map (функции `KEY(a)`/`VALUE(a)` — путь `a.key`/`a.value` в Hibernate 6 недоступен), union по списку тегов (защита от пустого списка), полная синхронизация Set (diff управляемой коллекции), merge Map (сохранённые ключи не теряются), persist transient-owner с заполненными коллекциями (дефолтный каскад PERSIST). Артефакт — методы сервиса `com.example.jpalab.service.ProductElementCollectionService` (скелет с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`, состояние БД — native-SELECT по таблицам `product_tags`/`product_attributes`). Только `@ElementCollection`: без `@OneToMany`/`@ManyToMany`, без отдельных сущностей для элементов; `@OrderColumn`/`@MapKey*` — плановая тема 19.
 
-## Планируемые темы (16–26) — ВНЕ текущего скоупа
-Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 150 заданий тем 01–15). Перечень плановый, порядок может меняться:
+### 16. @ManyToMany
+Связь «многие-ко-многим» `Product` ↔ `Tag` через промежуточную таблицу `product_tag_link` (обе стороны и таблица — стартовый код; имя поля-владельца `productTags`, потому что `tags` в `Product` уже занято строковой коллекцией темы 15). Владелец ассоциации и `mappedBy`; добавление/удаление связей через коллекцию владельца; двунаправленная согласованность обеих сторон в рамках одного persistence context (Hibernate не синхронизирует стороны автоматически); удаление «хвостовой» сущности Tag при cascade = NONE (связи сначала обрываются со стороны владельца; `tag.getProducts()` может быть stale — поиск через JPQL-join); поиск по имени тега (join по ассоциации); N+1 именно на коллекции `@ManyToMany` и `JOIN FETCH` (left join fetch — продукты без тегов в результате обязаны быть); «общие теги» (подзапрос/пересечение, distinct, исключение самого продукта). Артефакт — методы сервиса `com.example.jpalab.service.ProductTagService` (скелет с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`, состояние join-таблицы — native-SELECT).
 
-- 16. Наследование сущностей (SINGLE_TABLE / JOINED / TABLE_PER_CLASS, @DiscriminatorColumn)
-- 17. Продвинутый маппинг типов (@Embedded, @Convert/@Converter, EnumType, составные ключи)
-- 18. Полный маппинг коллекций (остаток после темы 15: `@OrderColumn`, колонки индекса List, `@MapKeyType`/`@MapKeyEnumerated`, ordered-коллекции)
-- 19. Querydsl (типобезопасный DSL)
-- 20. Транзакции в JPA (уровни изоляции, propagation, savepoints, длинные транзакции)
-- 21. Пессимистичная блокировка (@Lock PESSIMISTIC_READ/PESSIMISTIC_WRITE, lock timeout)
-- 22. Second-level cache (региональные кэши, @Cacheable, провайдеры)
-- 23. Query cache и стратегии кэширования
-- 24. Hibernate Event Listeners (@PrePersist/@PostLoad/… и их порядок)
-- 25. Soft delete (soft-delete паттерн, фильтрация удалённых, ограничения)
-- 26. Производительность: батчинг, fetch-стратегии, N+1 в сложных графах
+## Планируемые темы (17–27) — ВНЕ текущего скоупа
+Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 160 заданий тем 01–16). Перечень плановый, порядок может меняться:
+
+- 17. Наследование сущностей (SINGLE_TABLE / JOINED / TABLE_PER_CLASS, @DiscriminatorColumn)
+- 18. Продвинутый маппинг типов (@Embedded, @Convert/@Converter, EnumType, составные ключи)
+- 19. Полный маппинг коллекций (остаток после темы 15: `@OrderColumn`, колонки индекса List, `@MapKeyType`/`@MapKeyEnumerated`, ordered-коллекции)
+- 20. Querydsl (типобезопасный DSL)
+- 21. Транзакции в JPA (уровни изоляции, propagation, savepoints, длинные транзакции)
+- 22. Пессимистичная блокировка (@Lock PESSIMISTIC_READ/PESSIMISTIC_WRITE, lock timeout)
+- 23. Second-level cache (региональные кэши, @Cacheable, провайдеры)
+- 24. Query cache и стратегии кэширования
+- 25. Hibernate Event Listeners (@PrePersist/@PostLoad/… и их порядок)
+- 26. Soft delete (soft-delete паттерн, фильтрация удалённых, ограничения)
+- 27. Производительность: батчинг, fetch-стратегии, N+1 в сложных графах
 
 ## Границы тем (антидубли)
-- Темы 01–04: только derived / JPQL / native / GROUP BY. **Запрещены** Specification, Criteria API, Querydsl (темы 13, 14, 19).
-- Тема 07 (N+1) **не дублирует** темы кэширования: first-level cache упоминается только как контекст измерения, second-level cache — вообще отсутствует; кэширование — плановые темы 22/23.
+- Темы 01–04: только derived / JPQL / native / GROUP BY. **Запрещены** Specification, Criteria API, Querydsl (темы 13, 14, 20).
+- Тема 07 (N+1) **не дублирует** темы кэширования: first-level cache упоминается только как контекст измерения, second-level cache — вообще отсутствует; кэширование — плановые темы 23/24.
 - Тема 08 (пагинация) **не дублирует** обычные фильтрации тем 01–04: каждое задание 08 обязательно использует Pageable/Slice/Sort; «просто фильтр» здесь не задаётся.
-- Тема 11 (жизненный цикл) **не дублирует** сценарии транзакций плановой темы 20: здесь — состояния, identity map и REQUIRES_NEW как контракт сервиса; изоляция, savepoints, матрица propagation — только тема 20.
-- Тема 12 (нюансы) **не содержит**: pessimistic locking `@Lock` (тема 21), soft delete (тема 25), second-level cache (тема 22).
-- Тема 13 (Specification) **не выходит за границы**: только `Specification`/`JpaSpecificationExecutor` — без прямого Criteria API (тема 14) и Querydsl (тема 19); без дублей статических derived queries (01) и JPQL (02); пагинация — только в сочетании Specification + Pageable (чистая пагинация — тема 08).
-- Тема 14 (Criteria API) **не выходит за границы**: только API напрямую — без Specification (тема 13) и Querydsl (тема 19); повторение логических запросов тем 01–04 через Criteria разрешено (акцент на API, а не на запросе); чистая пагинация — тема 08; GROUP BY/HAVING — разрешённое исключение темы 04 в программной форме.
-- Тема 15 (@ElementCollection) **не выходит за границы**: только коллекции простых значений (`Set<String>`, `Map<String, String>`) — без `@OneToMany`/`@ManyToMany` (это темы 05–06), без отдельных сущностей для элементов коллекций, без `@OrderColumn`/`@MapKeyType` (плановая тема 18), без повторения тем 05–07 и «Продвинутый маппинг типов» (тема 17); поиск по элементам — JPQL/HQL без Criteria API (тема 14) и Specification (тема 13).
+- Тема 11 (жизненный цикл) **не дублирует** сценарии транзакций плановой темы 21: здесь — состояния, identity map и REQUIRES_NEW как контракт сервиса; изоляция, savepoints, матрица propagation — только тема 21.
+- Тема 12 (нюансы) **не содержит**: pessimistic locking `@Lock` (тема 22), soft delete (тема 26), second-level cache (тема 23).
+- Тема 13 (Specification) **не выходит за границы**: только `Specification`/`JpaSpecificationExecutor` — без прямого Criteria API (тема 14) и Querydsl (тема 20); без дублей статических derived queries (01) и JPQL (02); пагинация — только в сочетании Specification + Pageable (чистая пагинация — тема 08).
+- Тема 14 (Criteria API) **не выходит за границы**: только API напрямую — без Specification (тема 13) и Querydsl (тема 20); повторение логических запросов тем 01–04 через Criteria разрешено (акцент на API, а не на запросе); чистая пагинация — тема 08; GROUP BY/HAVING — разрешённое исключение темы 04 в программной форме.
+- Тема 15 (@ElementCollection) **не выходит за границы**: только коллекции простых значений (`Set<String>`, `Map<String, String>`) — без `@OneToMany`/`@ManyToMany` (это темы 05–06), без отдельных сущностей для элементов коллекций, без `@OrderColumn`/`@MapKeyType` (плановая тема 19), без повторения тем 05–07 и «Продвинутый маппинг типов» (тема 18); поиск по элементам — JPQL/HQL без Criteria API (тема 14) и Specification (тема 13).
+- Тема 16 (@ManyToMany) **не выходит за границы**: только ассоциация `@ManyToMany` между `Product` и `Tag` — без `@ElementCollection` (тема 15), без дублирования `@ManyToOne` (тема 05) и `@OneToMany` (тема 06); общий N+1 — тема 07, здесь N+1 только в контексте коллекции `@ManyToMany`; без `@OneToOne`, наследования, `@OrderColumn`/индексации коллекций.
 - Тема 09 (bulk) и тема 12 не пересекаются: 09 — механика bulk-SQL и PC, 12 — семантика `@Version`/валидации; единственная стыковая точка (bulk не поднимает version) закреплена в задании 12/09.
 
 ## Важное (скоуп)
 - Проект покрывает практическую Spring Data JPA / Hibernate-часть курса, а не весь курс. За кадром: SQL-основы, JDBC, проектирование БД, кластеры и облачные БД.
-- Текущий релиз: ровно 15 тем × 10 заданий = 150 заданий, 150 заранее созданных тестов. Тем 16–26 в репозитории нет и их не создавать без отдельного запроса.
+- Текущий релиз: ровно 16 тем × 10 заданий = 160 заданий, 160 заранее созданных тестов. Тем 17–27 в репозитории нет и их не создавать без отдельного запроса.
 - `answers/` не создаётся; каждое задание проверяется unit-тестом.
