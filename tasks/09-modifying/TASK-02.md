@@ -14,5 +14,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t09.TASK02Test#bulkDeleteByCondition
 ```
-- Критерии приёмки: Тест `bulkDeleteByCondition` зелёный: метод возвращает 1; в БД (native SELECT) остались только X и Z (Y удалён); в SQL-логе один вызов `delete from products where name = ?`.
+- Критерий приёмки: Тест `bulkDeleteByCondition` зелёный: метод возвращает 1; в БД (native SELECT) остались только X и Z (Y удалён); в SQL-логе один вызов `delete from products where name = ?`.
 - Подсказка (не решение): Bulk DELETE в JPQL имеет вид `DELETE FROM Сущность e WHERE <условие>`; он убирает строки из БД напрямую — `em.remove`, cascade и lifecycle-колбэки не участвуют.

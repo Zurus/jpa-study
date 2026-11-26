@@ -1,24 +1,19 @@
-# Задание 08. «Двойное владение»: managed-товар в коллекции новой категории
+# Задание 08. Двойная «владимость»: коллекция против FK
 - Тема: @OneToMany (Category → products)
 - Difficulty: 8
-- Что нужно сделать: Тест создан заранее (TASK08Test): товар P сохранён в категории A (managed). Создайте НОВУЮ категорию C, добавьте в её коллекцию этот managed-товар P, НЕ меняя `P.category` (он остаётся A), и сохраните C. Докажите, что после flush FK товара остался A, а коллекция C после `em.refresh` окажется пуста.
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `Category saveCategoryWithBorrowedProduct(String categoryName, Long productId)` — в своей транзакции: создать НОВУЮ категорию с именем `categoryName`, добавить в её коллекцию существующий товар по id БЕЗ вызова `product.setCategory(...)` (т.е. только «запретить» через коллекцию), сохранить категорию и вернуть её. Заранее созданный тест (TASK08Test) показывает ловушку: в памяти новая категория «содержит» товар, но FK остаётся у прежней категории, а после `em.refresh` коллекция оказывается пуста.
 - Стартовый код:
 ```java
-@DataJpaTest
-class OneToManyTask08Test {
-    @Test
-    void doubleOwnership() {
-        // P в A; em.clear(); managed-товар из A;
-        // Category c = new; c.getProducts().add(P); // setCategory НЕ вызываем
-        // categoryRepository.save(c); em.flush();
-        // SELECT category_id WHERE id = P -> id(A)
-        // em.refresh(c); c.getProducts().size() -> 0
-    }
-}
+// com/example/jpalab/service/ProductLifecycleService.java
+
+// TODO: new Category(name) -> find(product) ->
+//       category.getProducts().add(product)  // БЕЗ setCategory!
+//       -> save(category) -> return category
+Category saveCategoryWithBorrowedProduct(String categoryName, Long productId);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t06.TASK08Test#doubleOwnership
 ```
-- Критерий приёмки: Тест: после flush `category_id` товара — id A (FK не переехал); сохранение C не сломалось (merge managed-товара — no-op по FK); после `em.refresh(c)` коллекция C пуста (товар ей не принадлежит по FK); в комментарии зафиксирован вывод: «владеть» товаром может только одна категория (FK — единственная истина), а коллекция — лишь её отражение.
-- Подсказка (не решение): FK определяет истинного владельца; коллекция «без обратной ссылки» — пустое пожелание.
+- Критерий приёмки: Тест: данные — товар "DoubleOwned" в категории "TrueOwner" (A); ваш метод создаёт "NewClaimant" (C); после flush `category_id` товара в БД = id(A) — FK не переехал; в памяти `c.getProducts()` — 1 элемент («думает», что товар в ней); после `em.refresh(c)` коллекция пуста — по FK товар C не принадлежит.
+- Подсказка (не решение): «запрет» через коллекцию без обратной ссылки — только навигационный эффект внутри PC; источник правды для `category_id` — ManyToOne-сторона.

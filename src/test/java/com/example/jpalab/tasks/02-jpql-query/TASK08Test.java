@@ -2,6 +2,7 @@ package com.example.jpalab.tasks.t02;
 
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -17,13 +18,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Тема 02, задание 08. Ловушка: свойство сущности vs колонка БД.
  *
- * В репозиторий методы НЕ добавляются (битый метод убил бы запуск приложения) —
- * запросы строятся динамически через EntityManager:
+ * Динамические запросы через EntityManager показывают ловушку:
  * (а) JPQL с именем КОЛОНКИ  p.stock_quantity  -> ошибка;
- * (б) JPQL с именем СВОЙСТВА p.stockQuantity   -> работает.
+ * (б) JPQL с именем СВОЙСТВА p.stockQuantity   -> работает;
+ * (в) ваш метод `findStockAtLeast(int)` в `ProductRepository` (JPQL @Query
+ *     с именем СВОЙСТВА) должен вернуть тот же результат, что и (б).
  *
  * JPQL — язык модели сущностей: snake_case-колонки существуют только в DDL
  * и native-запросах, Hibernate подставит их сам.
+ *
+ * До реализации метода тест красный (TaskTestSupport не найдёт findStockAtLeast).
  */
 @DataJpaTest
 class TASK08Test {
@@ -55,5 +59,11 @@ class TASK08Test {
                 .setParameter("s", 10)
                 .getResultList();
         assertThat(found).extracting(Product::getName).containsExactly("High");
+
+        // (в) ваш метод в репозитории: JPQL по имени СВОЙСТВА (см. задание)
+        List<Product> viaMethod = TaskTestSupport.invoke(productRepository, "findStockAtLeast",
+                new Class<?>[]{int.class}, 10);
+        assertThat(viaMethod).as("метод findStockAtLeast использует имя свойства, а не колонки")
+                .extracting(Product::getName).containsExactly("High");
     }
 }

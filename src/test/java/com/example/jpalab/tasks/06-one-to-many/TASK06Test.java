@@ -4,11 +4,14 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -20,8 +23,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Данные LAZY-коллекции — это снапшот момента инициализации: внешнее
  * (из-за спины) изменение не «пробирается» в уже загруженную коллекцию
  * до refresh/новой транзакции.
+ *
+ * Перечитывание коллекции выполняет ВАШ метод сервиса
+ * `int refreshCategoryProductCount(Long categoryId)` в
+ * `ProductLifecycleService` (загружает managed-категорию, em.refresh и
+ * возвращает размер коллекции) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK06Test {
 
     @Autowired
@@ -29,6 +38,9 @@ class TASK06Test {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -65,8 +77,10 @@ class TASK06Test {
                 .getSingleResult();
         assertThat(inDb).isEqualTo(2L);
 
-        // em.refresh лечит: коллекция перечитана
-        em.refresh(managed);
+        // «лечение» stale-коллекции — ВАШИМ методом (em.refresh внутри)
+        int freshCount = TaskTestSupport.invoke(lifecycleService,
+                "refreshCategoryProductCount", new Class<?>[]{Long.class}, category.getId());
+        assertThat(freshCount).as("после refresh коллекция перечитана").isEqualTo(2);
         assertThat(managed.getProducts()).hasSize(2);
     }
 }

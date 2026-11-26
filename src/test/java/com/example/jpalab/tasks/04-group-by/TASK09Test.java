@@ -4,6 +4,7 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *     псевдоним для COUNT(p.id)) — ошибка уже при создании запроса
  *     (алиасы в HAVING разрешает не всякий SQL-диалект, например MySQL — да,
  *     стандарт/H2 — нет);
- * (б) портативный вариант: повторное выражение агрегата в HAVING.
+ * (б) ваш метод в `ProductRepository`
+ *     `List<Object[]> categoryNamesWithMoreProducts(long minCount)` —
+ *     портативный вариант: повторное выражение агрегата в HAVING.
  */
 @DataJpaTest
 class TASK09Test {
@@ -59,16 +62,10 @@ class TASK09Test {
                 """))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        // (б) повторное выражение агрегата — работает,
+        // (б) ваш метод: повторное выражение агрегата в HAVING — работает,
         //     пустая группа отфильтрована
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = em.createQuery("""
-                SELECT c.name, COUNT(p.id) FROM Category c
-                LEFT JOIN c.products p
-                GROUP BY c.name HAVING COUNT(p.id) > :min
-                """, Object[].class)
-                .setParameter("min", 0L)
-                .getResultList();
+        List<Object[]> rows = TaskTestSupport.invoke(productRepository,
+                "categoryNamesWithMoreProducts", new Class<?>[]{long.class}, 0L);
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0)[0]).isEqualTo("Many");
         assertThat(rows.get(0)[1]).isEqualTo(2L);

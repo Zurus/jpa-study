@@ -2,6 +2,7 @@ package com.example.jpalab.tasks.t02;
 
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.PersistenceContext;
@@ -19,8 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Тема 02, задание 10. L1-кэш: запрос и изменённая managed-сущность.
  *
- * Динамические JPQL-запросы через EntityManager доказывают семантику
- * первого уровня кэша:
+ * Запрос «товар по id» выполняется ВАШЕМ методом репозитория
+ * `findJpqlById(Long id)` (JPQL @Query) — до его реализации тест красный.
+ * Он доказывает семантику первого уровня кэша:
  * - сущность из JPQL управляема;
  * - изменение её в памяти без flush делает этот же объект видимым
  *   в результате ПОВТОРНОГО запроса, хотя SQL-запрос выполняется заново;
@@ -40,9 +42,8 @@ class TASK10Test {
     private EntityManager em;
 
     private List<Product> byId(Long id) {
-        return em.createQuery("SELECT p FROM Product p WHERE p.id = :id", Product.class)
-                .setParameter("id", id)
-                .getResultList();
+        return TaskTestSupport.invoke(productRepository, "findJpqlById",
+                new Class<?>[]{Long.class}, id);
     }
 
     @Test

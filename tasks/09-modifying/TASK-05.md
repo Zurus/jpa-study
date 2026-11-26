@@ -14,5 +14,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t09.TASK05Test#inListParameter
 ```
-- Критерии приёмки: Тест `inListParameter` зелёный: метод возвращает 2; в БД (native SELECT) stock: A = 7, C = 7, B = 0, D = 0; в SQL-логе один `update products` с `in (?, ?)`.
+- Критерий приёмки: Тест `inListParameter` зелёный: метод возвращает 2; в БД (native SELECT) stock: A = 7, C = 7, B = 0, D = 0; в SQL-логе один `update products` с `in (?, ?)`.
 - Подсказка (не решение): Hibernate сам расширяет List-параметр в `IN :names` на нужное количество плейсхолдеров — писать цикл или строковый SQL не нужно.

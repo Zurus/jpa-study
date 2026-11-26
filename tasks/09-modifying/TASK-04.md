@@ -15,5 +15,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t09.TASK04Test#multipleSetClauses
 ```
-- Критерии приёмки: Тест `multipleSetClauses` зелёный: метод возвращает 2; в БД (native SELECT по цене) (15.00, stock 2), (25.00, stock 2), (50.00, stock 1 — не тронут); в SQL-логе один `update products` с двумя изменяемыми столбцами.
+- Критерий приёмки: Тест `multipleSetClauses` зелёный: метод возвращает 2; в БД (native SELECT по цене) (15.00, stock 2), (25.00, stock 2), (50.00, stock 1 — не тронут); в SQL-логе один `update products` с двумя изменяемыми столбцами.
 - Подсказка (не решение): Несколько полей в SET разделяются запятой; в правой части SET допустимы выражения, использующие текущие поля сущности (`p.price + :delta`).

@@ -15,5 +15,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t09.TASK10Test#bulkUpdateWithBothFlagsInRealTransaction
 ```
-- Критерии приёмки: Тест `bulkUpdateWithBothFlagsInRealTransaction` зелёный: метод возвращает 1 (P1: 8 − 5 = 3, т.к. flushAutomatically сделал «грязные» 8 видимыми; P2: 3 < 5 — не участвует); немедленный `findById` P1 без `em.clear()` возвращает 3 (clearAutomatically очистил PC, а не вернул старую сущность с 8); в закоммиченном состоянии (новая транзакция) P1 = 3 и P2 = 3; в комментарии записано, что вернёт тест при убирании каждого из флагов.
+- Критерий приёмки: Тест `bulkUpdateWithBothFlagsInRealTransaction` зелёный: метод возвращает 1 (P1: 8 − 5 = 3, т.к. flushAutomatically сделал «грязные» 8 видимыми; P2: 3 < 5 — не участвует); немедленный `findById` P1 без `em.clear()` возвращает 3 (clearAutomatically очистил PC, а не вернул старую сущность с 8); в закоммиченном состоянии (новая транзакция) P1 = 3 и P2 = 3; в комментарии записано, что вернёт тест при убирании каждого из флагов.
 - Подсказка (не решение): `flushAutomatically` отвечает на вопрос «что запрос УВИДИТ», `clearAutomatically` — «что будет в PC ПОСЛЕ»; без первого bulk UPDATE посчитает по старым данным из БД, без второго find вернёт «старое» из PC.

@@ -1,38 +1,18 @@
 # Задание 03. Record DTO через конструкторное выражение в JPQL
-
-Тема: 10 — Проекции
-Сложность: 3/10
-
-## Цель
-Использовать конструкторное выражение (`SELECT new ...`) в существующий
-record `com.example.jpalab.dto.ProductNamePrice(String name, BigDecimal price)`.
-Record даёт value-семантику: сравнение по содержимому, доступ к полям через
-селекторы name()/price().
-
-## Входные данные (тест самодостаточен)
-4 товара без категорий: `P300` 300.00 stock 2, `P100` 100.00 stock 7,
-`P200` 200.00 stock 0, `P50` 50.00 stock 9. Метод вызывается с
-`minStock = 2`.
-
-## Что нужно сделать
-1. В `ProductRepository` добавьте метод:
-   - сигнатура: `List<ProductNamePrice> cheapestInStock(@Param("minStock") int minStock)`
-   - `@Query`:
-     `SELECT new com.example.jpalab.dto.ProductNamePrice(p.name, p.price) FROM Product p WHERE p.stockQuantity >= :minStock ORDER BY p.price ASC, p.name ASC`
-   - граница включена: `>=`; сортировка — самые дешёвые первыми.
-
-## Стартовый код
+- Тема: Проекции
+- Difficulty: 3
+- Что нужно сделать: В `ProductRepository` добавьте JPQL-метод `List<ProductNamePrice> cheapestInStock(@Param("minStock") int minStock)` — конструкторное выражение в СУЩЕСТВУЮЩИЙ record `com.example.jpalab.dto.ProductNamePrice(String name, BigDecimal price)`. В выборку попадают товары с остатком НЕ МЕНЬШЕ `:minStock` (граница включена), сортировка: цена по возрастанию (самые дешёвые первыми), тай-брейк — имя по возрастанию.
+- Стартовый код:
 ```java
 // com/example/jpalab/repository/ProductRepository.java
 
-// TODO: реализовать — @Query, SELECT new
-//       com.example.jpalab.dto.ProductNamePrice(p.name, p.price),
-//       stockQuantity >= :minStock, ORDER BY p.price ASC, p.name ASC
+// TODO: @Query — конструкторное выражение в ProductNamePrice,
+//       stockQuantity >= :minStock, ORDER BY price ASC, name ASC
 List<ProductNamePrice> cheapestInStock(@Param("minStock") int minStock);
 ```
-
-## Проверка
-Тест: `src/test/java/com/example/jpalab/tasks/10-projections/TASK03Test.java`
-Команда: `mvn -Dtest=com.example.jpalab.tasks.t10.TASK03Test#recordProjectionViaConstructorExpression`
-
-Тест красный до реализации, зелёный после правильной.
+- Тест для проверки:
+```bash
+mvn -Dtest=com.example.jpalab.tasks.t10.TASK03Test#recordProjectionViaConstructorExpression
+```
+- Критерий приёмки: Тест: 4 товара (стоки 2/7/0/9), вызов с minStock = 2 — 3 record-объекта в порядке возрастания цены (100.00, 200.00, 300.00), объект P200 (stock 0) отсутствует; поля доступны селекторами name()/price().
+- Подсказка (не решение): в `SELECT new ...` указывается ПОЛНЫЙ класс record, а аргументы конструктора перечисляются в том же порядке, что компоненты record.

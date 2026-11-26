@@ -1,25 +1,18 @@
-# Задание 09. Каскад 25 товаров: N INSERT-ов без батчинга
+# Задание 09. Сколько INSERT-ов стоит граф категории
 - Тема: @OneToMany (Category → products)
 - Difficulty: 9
-- Что нужно сделать: Тест создан заранее (TASK09Test): сохраните категорию с 25 товарами в коллекции (один `save`). Посчитайте через Hibernate Statistics число выполненных `INSERT` и зафиксируйте, что по умолчанию каждый товар — отдельный prepared statement (без JDBC-батчинга). Обоснуйте в комментарии, как это оптимизируется.
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `Category createCategoryWithProducts(String categoryName, int productCount)` — в своей транзакции создать категорию и `productCount` товаров в ней (цены/имена любые, но уникальные имена — например, по индексу; обратная ссылка `setCategory` + коллекция), сохранить и вернуть категорию. Заранее созданный тест (TASK09Test) просит создать 1 категорию с 25 товарами и считает SQL: 26 INSERT-ов (1 + 25) — без «удивительных» UPDATE-ов коллекции.
 - Стартовый код:
 ```java
-@DataJpaTest
-class OneToManyTask09Test {
-    @PersistenceContext private EntityManager em;
+// com/example/jpalab/service/ProductLifecycleService.java
 
-    @Test
-    void cascadeInsertsCount() {
-        // категория с 25 товарами;
-        // Statistics.clear(); save(category); em.flush();
-        // entityInsertCount == 26 (1 categories + 25 products)
-        // prepareStatementCount == 26 -> каждый INSERT отдельный
-    }
-}
+// TODO: category + productCount товаров (add в коллекцию + setCategory) ->
+//       один save категории -> return category
+Category createCategoryWithProducts(String categoryName, int productCount);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t06.TASK09Test#cascadeInsertsCount
 ```
-- Критерий приёмки: Тест: статистика показывает 26 entity-insert (1 `categories` + 25 `products`) и 26 prepared statement — без батчинга каждый каскадный INSERT отдельный; в комментарии объяснено: включение `hibernate.jdbc.batch_size` (>1) и сортировки DML (`hibernate.order_inserts`) превращает 25 отдельных INSERT-ов в батч; сам тест батчинг НЕ включает (только измеряет).
-- Подсказка (не решение): cascade PERSIST по большой коллекции = N отдельных INSERT-ов, если JDBC не настроен на батчи.
+- Критерий приёмки: Тест: вызов с 25 товарами — ровно 26 prepared statement и 26 entity INSERT (1 категория + 25 товаров, без UPDATE-ов коллекции); в БД 25 товаров с `category_id` созданной категории.
+- Подсказка (не решение): с `@JoinColumn` у «невладельческой» коллекции Hibernate писал бы N UPDATE-ов `category_id`; здесь владелец — ManyToOne, и граф пишется чистыми INSERT-ами.

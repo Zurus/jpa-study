@@ -1,18 +1,17 @@
 # Задание 09. Результат native-запроса — managed-сущность
 - Тема: Native queries
 - Difficulty: 9
-- Что нужно сделать: Тест создан заранее (TASK09Test): native-запрос + `EntityManager` доказывают, что сущности из native-запроса попадают в persistence context: результат native-SELECT идентичен результату `em.find()` (одна и та же инстанция), а изменение такой сущности и `flush` порождают UPDATE.
+- Что нужно сделать: Добавьте в `ProductRepository` native-метод `List<Product> findNativeById(@Param("id") Long id)`: `@Query(nativeQuery = true)`, возвращающий товар по id в виде сущности (`SELECT * FROM products WHERE id = :id`). Заранее созданный тест (TASK09Test) использует его, чтобы доказать: сущности из native-запроса попадают в persistence context — результат идентичен результату `em.find()` (одна и та же инстанция), а изменение такой сущности и `flush` порождают UPDATE.
 - Стартовый код:
 ```java
-// Тест создан заранее: com.example.jpalab.tasks.t03.TASK09Test
-// 1. сохранение товара (цена 100)
-// 2. native: SELECT * FROM products WHERE id = :id -> List<Product>
-// 3. em.find(Product.class, id) -> сравнение isSameAs, em.contains
-// 4. изменение цены, flush, UPDATE в SQL-логе, новое значение в БД
+// com/example/jpalab/repository/ProductRepository.java
+
+// TODO: @Query(nativeQuery = true) — SELECT * FROM products WHERE id = :id
+List<Product> findNativeById(@Param("id") Long id);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t03.TASK09Test#nativeResultsAreManaged
 ```
-- Критерий приёмки: Тест: результат native-запроса и `em.find` — одна инстанция (`isSameAs`); `em.contains` для результата native-запроса — true; после изменения цены и `flush` в SQL-логе виден `update products ... where id = ?` (с `version`), повторный native-SELECT показывает новую цену; в комментарии зафиксировано: native-результат проходит через тот же L1-кэш.
+- Критерий приёмки: Тест: результат вашего native-запроса и `em.find` — одна инстанция (`isSameAs`); `em.contains` для результата — true; после изменения цены и `flush` в SQL-логе виден `update products ... where id = ?`, повторный native-SELECT показывает новую цену; в комментарии зафиксировано: native-результат проходит через тот же L1-кэш.
 - Подсказка (не решение): native-запрос на сущность не «обходит» persistence context — он питает его.

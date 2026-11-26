@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -11,6 +13,7 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -23,8 +26,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * навигация, реальное изменение — колонка category_id на стороне товара
  * (владелец FK — ManyToOne-сторона). В SQL-логе ровно один
  * update products set ... category_id = ?, без delete/insert.
+ *
+ * Перенос выполняет ВАШ метод сервиса
+ * `void moveProductToCategory(Long productId, Long targetCategoryId)` в
+ * `ProductLifecycleService` (загружает managed-категории и товар, убирает
+ * из «старой» коллекции, добавляет в «новую», обновляет обратную ссылку,
+ * flush) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK04Test {
 
     @Autowired
@@ -32,6 +42,9 @@ class TASK04Test {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -45,17 +58,13 @@ class TASK04Test {
         productRepository.saveAndFlush(product);
         em.clear();
 
-        Category managedA = categoryRepository.findById(a.getId()).orElseThrow();
-        Category managedB = categoryRepository.findById(b.getId()).orElseThrow();
-        Product managedProduct = (Product) managedA.getProducts().get(0);
-
-        // перенос: убрать из A, добавить в B, обновить обратную ссылку
-        managedA.getProducts().remove(managedProduct);
-        managedB.getProducts().add(managedProduct);
-        managedProduct.setCategory(managedB);
-
+        // перенос — ВАШИМ методом: убрать из A, добавить в B,
+        // обновить обратную ссылку
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
+
+        TaskTestSupport.invoke(lifecycleService, "moveProductToCategory",
+                new Class<?>[]{Long.class, Long.class}, product.getId(), b.getId());
 
         em.flush();
 
@@ -67,7 +76,7 @@ class TASK04Test {
         // товар всё тот же (id не изменился), строка одна
         Object fk = em.createNativeQuery(
                 "SELECT category_id FROM products WHERE id = ?", Long.class)
-                .setParameter(1, managedProduct.getId())
+                .setParameter(1, product.getId())
                 .getSingleResult();
         assertThat(fk).isEqualTo(b.getId());
         Long total = (Long) em.createNativeQuery("SELECT COUNT(*) FROM products", Long.class)

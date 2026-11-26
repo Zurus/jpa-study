@@ -14,5 +14,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t09.TASK01Test#firstBulkUpdate
 ```
-- Критерии приёмки: Тест `firstBulkUpdate` зелёный: метод возвращает 2; в БД (native SELECT) у обоих товаров категории A цена 99.99, а у товара категории B цена не изменилась (30.00); в SQL-логе один вызов `update products set price = ? where ...` (один bulk UPDATE, а не per-entity UPDATE).
+- Критерий приёмки: Тест `firstBulkUpdate` зелёный: метод возвращает 2; в БД (native SELECT) у обоих товаров категории A цена 99.99, а у товара категории B цена не изменилась (30.00); в SQL-логе один вызов `update products set price = ? where ...` (один bulk UPDATE, а не per-entity UPDATE).
 - Подсказка (не решение): Bulk UPDATE в JPQL имеет вид `UPDATE Сущность e SET e.поле = :значение WHERE <условие>`; метод с `@Modifying` возвращает `int` — количество затронутых строк.

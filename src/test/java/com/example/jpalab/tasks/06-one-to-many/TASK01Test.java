@@ -3,6 +3,8 @@ package com.example.jpalab.tasks.t06;
 import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -10,6 +12,7 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -22,12 +25,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Сохраняем ТОЛЬКО категорию (save один раз) — cascade ALL включает
  * PERSIST/MERGE, и Hibernate сохранит и товары коллекции:
  * в SQL-логе 1 insert into categories + 2 insert into products.
+ *
+ * Сохранение графа выполняет ВАШ метод сервиса
+ * `Category persistCategoryGraph(Category category)` в
+ * `ProductLifecycleService` (persist/flush категории, к которой уже
+ * привязаны товары с обратной ссылкой) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK01Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -46,8 +58,10 @@ class TASK01Test {
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
 
-        // сохранена только категория
-        categoryRepository.save(category);
+        // сохранена только категория — ВАШИМ методом сервиса
+        Category persisted = TaskTestSupport.invoke(lifecycleService, "persistCategoryGraph",
+                new Class<?>[]{Category.class}, category);
+        assertThat(persisted.getId()).isNotNull();
         em.flush();
 
         // 1 insert into categories + 2 insert into products

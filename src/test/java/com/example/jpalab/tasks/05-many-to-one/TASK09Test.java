@@ -4,11 +4,14 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -20,8 +23,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * merge — это «применить diff отстёгнутого к управляемому»: навигационные
  * поля копируются вместе со скалярами; «отстёгнутый» объект по-прежнему
  * detached, результат merge — managed-копия.
+ *
+ * Merge с новой категорией выполняет ВАШ метод сервиса
+ * `Product mergeDetachedProductWithCategory(Product detached,
+ * String newCategoryName)` в `ProductLifecycleService` (загружает категорию
+ * по имени, вешает её на detached-копию, вызывает merge) — до его реализации
+ * тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK09Test {
 
     @Autowired
@@ -29,6 +39,9 @@ class TASK09Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -53,11 +66,11 @@ class TASK09Test {
         Product detached = productRepository.findById(product.getId()).orElseThrow();
         em.clear();
 
-        // изменение у detached-копии
-        detached.setCategory(b);
-
-        // merge (JpaRepository.save -> merge для существующей сущности)
-        Product managed = productRepository.save(detached);
+        // изменение у detached-копии и merge — ВАШИМ методом
+        // (категория "B" загружается сервисом по имени, merge через репозиторий)
+        Product managed = TaskTestSupport.invoke(lifecycleService,
+                "mergeDetachedProductWithCategory",
+                new Class<?>[]{Product.class, String.class}, detached, "B");
         em.flush();
 
         // результат merge — ДРУГАЯ инстанция, чем переданная

@@ -23,10 +23,9 @@
 Диапазон difficulty: 1–10.
 
 ## Как проверить задание
-1. Методы с `@Query`/`@EntityGraph` добавляйте в `src/main/java/com/example/jpalab/repository/ProductRepository.java` (или `CategoryRepository.java`) только в объёме задания.
-2. Создайте тест-класс `NPlusOneTask01Test` … `NPlusOneTask10Test` в `src/test/java/com/example/jpalab/repository/` (`@DataJpaTest`, AssertJ).
-3. Для замера SQL используйте Statistics: `em.unwrap(Session.class).getSessionFactory().getStatistics().getPrepareStatementCount()` (и `clear()` перед замером) — образец: `NPlusOneExampleTest.java`.
-4. ВАЖНО: данные создавайте, затем `em.flush(); em.clear();` — иначе `findAll` вернёт те же инстанции из первого уровня кэша (с уже инициализированными ассоциациями), и N+1 не проявится.
-5. Запустите: `mvn -Dtest=NPlusOneTask01Test test` (замените имя).
+1. Выполните «Что нужно сделать» из TASK-XX.md: добавьте указанный метод — в `ProductService` (задания 01, 02, 06, 08, 10), `ProductRepository` (задания 03, 04, 05, 07) или `CategoryRepository` (задание 09) — строго в объёме задания.
+2. Тесты заданий созданы заранее (пакет `com.example.jpalab.tasks.t07`, по классу на задание: `TASK01Test` … `TASK10Test`) — свои тесты писать не нужно. Тесты сами меряют SQL через Hibernate Statistics.
+3. Запустите команду из блока «Тест для проверки» в TASK-XX.md.
+4. Задание выполнено, когда тест зелёный и выполнен «Критерий приёмки» из TASK-XX.md (поведение + точные числа prepared statements).
 
 Решения в этой папке не раскрываются.

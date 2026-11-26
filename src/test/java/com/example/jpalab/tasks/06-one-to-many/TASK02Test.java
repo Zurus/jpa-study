@@ -3,6 +3,8 @@ package com.example.jpalab.tasks.t06;
 import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -10,6 +12,7 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -21,12 +24,22 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Коллекция managed-сущности «под контролем»: Hibernate видит
  * добавленный элемент при flush и уводит его в БД через cascade PERSIST —
  * один insert into products с FK, без пересоздания категории.
+ *
+ * Добавление товара выполняет ВАШ метод сервиса
+ * `void addProductToCategory(Long categoryId, String productName,
+ * BigDecimal price, int stockQuantity)` в `ProductLifecycleService`
+ * (загружает managed-категорию, создаёт товар, выставляет обе стороны
+ * связи, flush) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK02Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -42,17 +55,14 @@ class TASK02Test {
         Category managed = categoryRepository.findById(saved.getId()).orElseThrow();
         assertThat(managed.getProducts()).isEmpty();
 
-        Product newProduct = Product.builder()
-                .name("NewP")
-                .price(new BigDecimal("5.00"))
-                .stockQuantity(1)
-                .build();
-        // обратная ссылка обязательна
-        newProduct.setCategory(managed);
-        managed.getProducts().add(newProduct);
-
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
+
+        // добавление товара — ВАШИМ методом (создаёт товар с обратной ссылкой
+        // и добавляет в коллекцию managed-категории)
+        TaskTestSupport.invoke(lifecycleService, "addProductToCategory",
+                new Class<?>[]{Long.class, String.class, BigDecimal.class, int.class},
+                saved.getId(), "NewP", new BigDecimal("5.00"), 1);
 
         em.flush();
 

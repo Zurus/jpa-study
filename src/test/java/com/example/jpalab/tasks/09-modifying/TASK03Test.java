@@ -4,6 +4,7 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -16,13 +17,17 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Тема 09, задание 03. Конвейер: bulk UPDATE → bulk DELETE (существующие методы).
+ * Тема 09, задание 03. Конвейер: bulk UPDATE → bulk DELETE.
  *
- * Два bulk-запроса из ProductRepository, уже объявленные в репозитории:
- * updateStockForExpensive(stock, minPrice) — «обнулить stock у дорогих»,
- * deleteOutOfStock() — «удалить всё с нулевым stock». Сценарий показывает,
- * как bulk-операции комбинируются: UPDATE готовит данные, DELETE их убирает.
- * Возвращаемые значения — число затронутых строк на каждом шаге.
+ * Сценарий показывает, как bulk-операции комбинируются: UPDATE готовит
+ * данные, DELETE их убирает. Возвращаемые значения — число затронутых
+ * строк на каждом шаге.
+ *
+ * Оба bulk-запроса пишут ВЫ:
+ * - `int zeroStockForPricedAtLeast(BigDecimal minPrice)` — обнуляет stock
+ *   у товаров с ценой от minPrice;
+ * - `int deleteZeroStockProducts()` — удаляет товары с нулевым stock.
+ * До их реализации в ProductRepository тест красный.
  */
 @DataJpaTest
 class TASK03Test {
@@ -48,11 +53,14 @@ class TASK03Test {
         em.flush();
 
         // шаг 1: bulk UPDATE — обнулить stock у товаров с ценой >= 25
-        int zeroed = productRepository.updateStockForExpensive(0, new BigDecimal("25.00"));
+        int zeroed = TaskTestSupport.invoke(productRepository,
+                "zeroStockForPricedAtLeast", new Class<?>[]{BigDecimal.class},
+                new BigDecimal("25.00"));
         assertThat(zeroed).isEqualTo(2);
 
         // шаг 2: bulk DELETE — удалить товары с нулевым stock
-        int deleted = productRepository.deleteOutOfStock();
+        int deleted = TaskTestSupport.invoke(productRepository,
+                "deleteZeroStockProducts", new Class<?>[]{});
         assertThat(deleted).isEqualTo(2);
 
         // итог: остался только «недорогой» товар с прежним stock

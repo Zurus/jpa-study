@@ -1,24 +1,17 @@
 # Задание 01. Первый OneToMany: каскад сохранения коллекции
 - Тема: @OneToMany (Category → products)
 - Difficulty: 1
-- Что нужно сделать: Тест создан заранее (TASK01Test): создайте категорию, в её коллекцию `products` добавьте 2 товара (не забудьте обратную ссылку `product.setCategory(category)`) и сохраните только КАТЕГОРИЮ. Докажите, что cascade сохранил и товары.
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `Category persistCategoryGraph(Category category)` — в своей транзакции сохранить ТОЛЬКО переданную категорию (один раз); у категории уже привязаны товары с обратной ссылкой (`product.setCategory(category)` + `category.getProducts().add(...)`). Каскад на коллекции (`cascade = ALL`) должен сохранить и товары. Метод возвращает сохранённую категорию. Заранее созданный тест (TASK01Test) строит граф в памяти (категория + 2 товара, без сохранений) и проверяет, что один вызов записал всё: 3 INSERT-а.
 - Стартовый код:
 ```java
-@DataJpaTest
-class OneToManyTask01Test {
-    @Test
-    void cascadePersistsCollection() {
-        // category.builder()...build(); category.getProducts().add(p1); add(p2)
-        // (p1/p2 связаны обратно: setCategory)
-        // categoryRepository.save(category); em.flush();
-        // Statistics: 3 insert (1 categories + 2 products)
-        // SELECT COUNT(*) FROM products WHERE category_id = ? -> 2
-    }
-}
+// com/example/jpalab/service/ProductLifecycleService.java
+
+// TODO: один save/persist категории (каскад сохранит и коллекцию) -> вернуть её
+Category persistCategoryGraph(Category category);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t06.TASK01Test#cascadePersistsCollection
 ```
-- Критерий приёмки: Тест: сохранена только категория (`save` один раз), но в БД 2 строки товаров с `category_id`, равным id категории; статистика: 3 insert (1 `categories` + 2 `products`); в комментарии зафиксировано, что `cascade = ALL` включает PERSIST/MERGE.
-- Подсказка (не решение): каскад идёт ОТ родителя к коллекции: сохранение «одного» уносит «многих».
+- Критерий приёмки: Тест: после вызова у категории id не null; ровно 3 prepared statement и 3 entity INSERT (1 `insert into categories` + 2 `insert into products`); в БД 2 товара, оба с `category_id` этой категории; таблица категорий — 1 строка.
+- Подсказка (не решение): `CascadeType.ALL` на `@OneToMany` включает PERSIST/MERGE: сохранение родителя распространяется на managed-коллекцию; владелец FK — ManyToOne, поэтому `category_id` в INSERT-ах товаров заполняется по обратной ссылке.

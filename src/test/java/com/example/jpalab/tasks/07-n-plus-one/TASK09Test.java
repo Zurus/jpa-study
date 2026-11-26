@@ -6,16 +6,19 @@ import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.example.jpalab.tasks.TaskTestSupport;
 
 /**
  * Тема 07, задание 09. Ловушка: count-запрос с JOIN FETCH и
@@ -25,11 +28,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *     ассоциации в агрегат-запросе (бросает IllegalArgumentException);
  * (б) обычный `JOIN c.products` в count «мультиплицирует» строки:
  *     считается число joined-строк (6), а не число категорий (4);
- * (в) лимитированный fetch-join-запрос не содержит дубликатов инстанции —
- *     Hibernate дедуплицирует сущности в результате.
- *
- * Запросы динамические (EntityManager): битый fetch join в @Query убил
- * бы запуск приложения.
+ * (в) ваш метод `CategoryRepository.findAllWithProductsFetched()`
+ *     (@EntityGraph по коллекции products) — один запрос на все категории
+ *     ВКЛЮЧАЯ пустую, без дубликатов инстанции и без дополнительных
+ *     запросов к коллекциям.
  */
 @DataJpaTest
 class TASK09Test {
@@ -80,20 +82,32 @@ class TASK09Test {
                 .getSingleResult();
         assertThat(plain).isEqualTo(4L);
 
-        // (в) лимитированный fetch-join: инстанции в результате уникальны
+        // (в) ВАШ метод: одна загрузка (категории + коллекции) без дублей
+        Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
+        statistics.clear();
         @SuppressWarnings("unchecked")
-        List<Category> limited = (List<Category>) em
-                .createQuery("SELECT c FROM Category c JOIN FETCH c.products", Category.class)
-                .setMaxResults(3)
-                .getResultList();
-        assertThat(limited).isNotEmpty();
-        long uniqueIdentities = limited.stream()
+        List<Category> all = TaskTestSupport.invoke(categoryRepository,
+                "findAllWithProductsFetched", new Class<?>[]{});
+        // ровно ОДИН запрос на категории с коллекциями
+        assertThat(statistics.getPrepareStatementCount())
+                .as("@EntityGraph/fetch join должен дать один запрос")
+                .isEqualTo(1);
+        // все 4 категории, включая пустую (LEFT JOIN графа)
+        assertThat(all).extracting(Category::getName)
+                .containsExactlyInAnyOrder("F A", "F B", "F C", "F D");
+        long uniqueIdentities = all.stream()
                 .map(System::identityHashCode)
                 .distinct()
                 .count();
-        assertThat(uniqueIdentities).isEqualTo(limited.size());
-        // внутренний join: категории без товаров ("F D") в результате не участвуют
-        assertThat(limited).allSatisfy(category ->
-                assertThat(category.getName()).isIn("F A", "F B", "F C"));
+        assertThat(uniqueIdentities).isEqualTo(all.size());
+        // коллекции уже загружены: size() без доп. SQL
+        statistics.clear();
+        int totalProducts = all.stream()
+                .mapToInt(c -> c.getProducts().size())
+                .sum();
+        assertThat(totalProducts).isEqualTo(6);
+        assertThat(statistics.getPrepareStatementCount())
+                .as("коллекции уже инициализированы графом")
+                .isZero();
     }
 }

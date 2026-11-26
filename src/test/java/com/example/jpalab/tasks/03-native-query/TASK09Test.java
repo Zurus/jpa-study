@@ -2,6 +2,7 @@ package com.example.jpalab.tasks.t03;
 
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -18,7 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Тема 03, задание 09. Результат native-запроса — managed-сущность.
  *
- * Native-запрос на сущность не «обходит» persistence context — он питает его:
+ * Native-запрос на сущность не «обходит» persistence context — он питает его.
+ * Запрос «товар по id» выполняется ВАШЕМ native-методом репозитория
+ * `List<Product> findNativeById(Long id)` (native SELECT * по id) — до его
+ * реализации тест красный. Свойства, которые доказывает тест:
  * - результат native-SELECT и em.find — одна и та же инстанция;
  * - em.contains для результата native-запроса — true;
  * - изменение такой сущности и flush порождают UPDATE.
@@ -33,9 +37,8 @@ class TASK09Test {
     private EntityManager em;
 
     private List<Product> nativeById(Long id) {
-        return em.createNativeQuery("SELECT * FROM products WHERE id = :id", Product.class)
-                .setParameter("id", id)
-                .getResultList();
+        return TaskTestSupport.invoke(productRepository, "findNativeById",
+                new Class<?>[]{Long.class}, id);
     }
 
     @Test

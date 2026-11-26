@@ -15,4 +15,4 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 mvn -Dtest=com.example.jpalab.tasks.t02.TASK04Test#upperConcatLikeIsCaseInsensitive
 ```
 - Критерий приёмки: Тест: «WIDG» находит «Super Widget», «super» находит «Super Widget» и «super gizmo»; одиночное «i» из «Boring item» НЕ находит лишнего (фрагмент внутри слова); в SQL-логе UPPER применён и к колонке, и к параметру; сам фрагмент передаётся параметром, а не встраивается в текст запроса.
-- Подсказка (не решение): `UPPER(p.name) LIKE UPPER(CONCAT('%', :fragment, '%'))` — дички собираются вокруг параметра.
+- Подсказка (не решение): регистровую нормализацию применяйте к ОБЕИМ сторонам сравнения — и к колонке, и к параметру; «дички» должны обрамлять именно параметр, а не весь текст запроса.

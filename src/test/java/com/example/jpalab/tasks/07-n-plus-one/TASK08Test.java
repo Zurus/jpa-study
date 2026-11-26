@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -11,10 +13,13 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.data.domain.Page;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,8 +30,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * по каждой строке страницы: N в «N+1» = размер страницы, и на каждой
  * странице N запросов к ассоциациям повторяется (плюс count-запрос).
  * Решение — @EntityGraph/fetch join вместе с Pageable (тема 8).
+ *
+ * Страница с «наивным» доступом к категориям (paged findAll + цикл по
+ * getCategory().getName()) возвращает ВАШ метод
+ * `List<String> pageProductRowsWithCategoryNames(Pageable pageable)` в
+ * `ProductService` (строки вида "<name> [<categoryName>]") — до его
+ * реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductService.class)
 class TASK08Test {
 
     @Autowired
@@ -34,6 +46,9 @@ class TASK08Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductService productService;
 
     @PersistenceContext
     private EntityManager em;
@@ -58,16 +73,14 @@ class TASK08Test {
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
 
-        // первая страница размера 2: count-запрос + data-запрос = 2
-        Page<Product> page = productRepository.findAll(PageRequest.of(0, 2));
-        assertThat(page.getContent()).hasSize(2);
-        assertThat(page.getTotalElements()).isEqualTo(6);
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        // первая страница размера 2 (сортировка по id): count-запрос +
+        // data-запрос = 2, затем доступ к категориям элементов страницы: +2
+        List<String> rows = TaskTestSupport.invoke(productService,
+                "pageProductRowsWithCategoryNames",
+                new Class<?>[]{Pageable.class},
+                PageRequest.of(0, 2, Sort.by("id")));
+        assertThat(rows).containsExactly("N8 P1 [N8 C1]", "N8 P2 [N8 C2]");
 
-        // доступ к категориям элементов страницы: +N, где N = 2
-        for (Product product : page.getContent()) {
-            product.getCategory().getName();
-        }
         // итого 4
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(4);
     }

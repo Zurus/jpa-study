@@ -3,6 +3,7 @@ package com.example.jpalab.tasks.t03;
 import com.example.jpalab.dto.ProductNamePrice;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * (а) «SELECT new com.example.jpalab.dto.ProductNamePrice(name, price) FROM products»
  *     как native — завершается исключением: SELECT new ... — синтаксис JPQL,
  *     в native-запросе DTO собирается вручную из Object[]/скаляров;
- * (б) корректный native-запрос SELECT name, price -> Object[] -> record.
+ * (б) ваш метод `nativeAllNamePrice()` в `ProductRepository` — корректный
+ *     native-запрос, возвращающий все пары (name, price) как Object[] -> record.
  */
 @DataJpaTest
 class TASK07Test {
@@ -49,9 +51,9 @@ class TASK07Test {
                 .getResultList())
                 .isInstanceOf(Exception.class);
 
-        // (б) корректный native-запрос: Object[] -> ручной маппинг в record
-        List<Object[]> rows = em.createNativeQuery("SELECT name, price FROM products", Object[].class)
-                .getResultList();
+        // (б) ваш метод в репозитории: native-выборка пар (name, price)
+        List<Object[]> rows = TaskTestSupport.invoke(productRepository, "nativeAllNamePrice",
+                new Class<?>[]{}, new Object[0]);
         assertThat(rows).hasSize(2);
         for (Object[] row : rows) {
             assertThat(row).hasSize(2);

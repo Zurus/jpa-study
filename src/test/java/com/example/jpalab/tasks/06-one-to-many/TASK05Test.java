@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -11,6 +13,7 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -24,8 +27,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * и НЕ умеет двигать чужой FK. Добавив товар в коллекцию B без
  * setCategory(B), мы не изменим ничего в БД: FK по-прежнему A.
  * Двунаправленную связь нужно поддерживать с ОБЕИХ сторон.
+ *
+ * «Ошибочное» добавление в коллекцию (без обратной ссылки) выполняет ВАШ
+ * метод сервиса `void addProductToCollectionOnly(Long categoryId,
+ * Long productId)` в `ProductLifecycleService` (загружает managed-категорию
+ * и товар, добавляет в коллекцию, НЕ вызывает setCategory, flush) — до его
+ * реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK05Test {
 
     @Autowired
@@ -33,6 +43,9 @@ class TASK05Test {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -46,13 +59,12 @@ class TASK05Test {
         productRepository.saveAndFlush(product);
         em.clear();
 
-        // managed-коллекция B; добавляем товар БЕЗ setCategory(b)
-        Category managedB = categoryRepository.findById(b.getId()).orElseThrow();
-        Product managedProduct = productRepository.findById(product.getId()).orElseThrow();
-        managedB.getProducts().add(managedProduct);
-
+        // managed-коллекция B; товар добавляет БЕЗ setCategory(b) ВАШ метод
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
+
+        TaskTestSupport.invoke(lifecycleService, "addProductToCollectionOnly",
+                new Class<?>[]{Long.class, Long.class}, b.getId(), product.getId());
 
         em.flush();
 

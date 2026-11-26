@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -11,9 +13,10 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,8 +26,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * N+1 для коллекций — это N загрузок КОЛЛЕКЦИЙ (по одной на родителя),
  * а не N × размер коллекции: у первой категории 3 товара, у четвёртой 1,
  * а запросов одинаково — по одному на категорию.
+ *
+ * Сценарий «считать товары по каждой категории» (findAll категорий +
+ * цикл getProducts().size()) реализует ВАШ метод
+ * `Map<String, Integer> countProductsPerCategory()` в `ProductService`
+ * (имя категории -> размер коллекции) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductService.class)
 class TASK02Test {
 
     @Autowired
@@ -32,6 +41,9 @@ class TASK02Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductService productService;
 
     @PersistenceContext
     private EntityManager em;
@@ -59,16 +71,15 @@ class TASK02Test {
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
 
-        // 1 SELECT по categories
-        List<Category> categories = categoryRepository.findAll();
-        assertThat(categories).hasSize(4);
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+        // ВАШ метод: 1 SELECT по categories + 4 SELECT по коллекциям
+        Map<String, Integer> counts = TaskTestSupport.invoke(productService,
+                "countProductsPerCategory", new Class<?>[]{});
+        assertThat(counts).containsExactlyInAnyOrderEntriesOf(Map.of(
+                "N2 C0", 3,
+                "N2 C1", 2,
+                "N2 C2", 1,
+                "N2 C3", 1));
 
-        // цикл: инициализация LAZY-коллекции — 1 SELECT на категорию,
-        // независимо от размера коллекции
-        for (Category category : categories) {
-            category.getProducts().size();
-        }
         // итого 1 + 4 = 5
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(5);
     }

@@ -23,9 +23,9 @@
 Диапазон difficulty: 1–10.
 
 ## Как проверить задание
-1. Добавьте метод `@Query` (JPQL) в `src/main/java/com/example/jpalab/repository/ProductRepository.java` или `CategoryRepository.java` согласно заданию.
-2. Создайте тест-класс `GroupByTask01Test` … `GroupByTask10Test` в `src/test/java/com/example/jpalab/repository/` (`@DataJpaTest`, AssertJ, свои данные в каждом тесте). Для заданий с динамическими запросами используйте `@PersistenceContext EntityManager`.
-3. Запустите: `mvn -Dtest=GroupByTask01Test test` (замените имя).
-4. Задание выполнено, если тест зелёный и выполнены пункты «Критерий приёмки» (поведение + фрагменты SQL-лога, где требуется).
+1. Выполните «Что нужно сделать» из TASK-XX.md: добавьте метод `@Query` (JPQL) в `src/main/java/com/example/jpalab/repository/ProductRepository.java` или `CategoryRepository.java` — по указанию файла задания.
+2. Тесты заданий созданы заранее (пакет `com.example.jpalab.tasks.t04`, по классу на задание: `TASK01Test` … `TASK10Test`) — свои тесты писать не нужно.
+3. Запустите команду из блока «Тест для проверки» в TASK-XX.md.
+4. Задание выполнено, когда тест зелёный и выполнен «Критерий приёмки» из TASK-XX.md (поведение + фрагменты SQL-лога, где требуется).
 
 Решения в этой папке не раскрываются.

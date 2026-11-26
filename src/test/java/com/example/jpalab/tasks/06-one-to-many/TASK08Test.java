@@ -4,11 +4,14 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -22,8 +25,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * коллекцию новой категории C без setCategory(C), мы получим:
  * FK по-прежнему A; сохранение C не сломалось (merge managed-товара —
  * no-op по FK); после refresh(c) коллекция C окажется пуста.
+ *
+ * Создание «притязательной» категории C с borrowed-товаром выполняет ВАШ
+ * метод сервиса `Category saveCategoryWithBorrowedProduct(String categoryName,
+ * Long productId)` в `ProductLifecycleService` (новая категория, товар
+ * добавляется в коллекцию БЕЗ setCategory, сохранение категории) — до его
+ * реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK08Test {
 
     @Autowired
@@ -31,6 +41,9 @@ class TASK08Test {
 
     @Autowired
     private ProductRepository productRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -48,15 +61,11 @@ class TASK08Test {
         productRepository.saveAndFlush(product);
         em.clear();
 
-        // managed-товар (из persistence context)
-        Category managedA = categoryRepository.findById(a.getId()).orElseThrow();
-        Product managedProduct = (Product) managedA.getProducts().get(0);
-
-        // НОВАЯ категория C: добавляем managed-товар в её коллекцию,
-        // P.setCategory НЕ вызываем
-        Category c = Category.builder().name("NewClaimant").build();
-        c.getProducts().add(managedProduct);
-        categoryRepository.save(c);
+        // НОВАЯ категория C: managed-товар попадает в её коллекцию,
+        // P.setCategory НЕ вызывается — ВАШИМ методом
+        Category c = TaskTestSupport.invoke(lifecycleService,
+                "saveCategoryWithBorrowedProduct",
+                new Class<?>[]{String.class, Long.class}, "NewClaimant", product.getId());
         em.flush();
 
         // FK товара остался A

@@ -2,6 +2,7 @@ package com.example.jpalab.tasks.t09;
 
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -16,10 +17,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Тема 09, задание 07. flushAutomatically: bulk-запрос видит НЕзаflushенные изменения.
  *
- * Существующий метод updateStockForExpensive(stock, minPrice) объявлен с
- * flushAutomatically = true: перед выполнением bulk UPDATE Hibernate сначала
- * выгружает pending-изменения из PC в БД. Поэтому bulk WHERE price >= :minPrice
- * видит цену, изменённую «в памяти», а не старую цену из БД.
+ * ВАШ метод репозитория `int setStockForPricedAtLeast(int stock,
+ * BigDecimal minPrice)` объявляется с `@Modifying(flushAutomatically = true)`:
+ * перед выполнением bulk UPDATE Hibernate сначала выгружает pending-
+ * изменения из PC в БД. Поэтому bulk WHERE price >= :minPrice видит цену,
+ * изменённую «в памяти», а не старую цену из БД.
+ * До его реализации тест красный.
  */
 @DataJpaTest
 class TASK07Test {
@@ -45,7 +48,9 @@ class TASK07Test {
 
         // flushAutomatically = true: pending-изменение ушло в БД ПЕРЕД bulk UPDATE,
         // поэтому WHERE price >= 250 видит A.price = 300 (а не 100 из БД)
-        int zeroed = productRepository.updateStockForExpensive(0, new BigDecimal("250.00"));
+        int zeroed = TaskTestSupport.invoke(productRepository,
+                "setStockForPricedAtLeast", new Class<?>[]{int.class, BigDecimal.class},
+                0, new BigDecimal("250.00"));
         assertThat(zeroed).isEqualTo(1);
 
         // в БД: A — stock 0, B — не тронут (200 < 250)

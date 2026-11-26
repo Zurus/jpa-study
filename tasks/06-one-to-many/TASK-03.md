@@ -1,25 +1,18 @@
-# Задание 03. orphanRemoval: удаление из коллекции
+# Задание 03. Orphan removal: выкинули из коллекции — строка удалена
 - Тема: @OneToMany (Category → products)
 - Difficulty: 3
-- Что нужно сделать: Тест создан заранее (TASK03Test): категория с 2 товарами. Загрузите managed-родителя, найдите в его коллекции нужный managed-товар и удалите его ТОЛЬКО из коллекции (`remove`), не вызывая `em.remove`. После flush докажите, что строка товара исчезла из БД, а второй товар категории на месте.
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `void removeProductFromCategory(Long categoryId, String productName)` — в своей транзакции загрузить managed-категорию и убрать товар с именем `productName` ТОЛЬКО ИЗ ЕЁ КОЛЛЕКЦИИ (`getProducts().remove(...)`); `em.remove`/`delete` вызывать НЕ нужно — на коллекции `Category.products` стоит `orphanRemoval = true` (неявно влечёт cascade REMOVE). Заранее созданный тест (TASK03Test): категория с 2 товарами; после вашего метода в БД один DELETE, в категории остался 1 товар, товара с таким именем в таблице нет.
 - Стартовый код:
 ```java
-@DataJpaTest
-class OneToManyTask03Test {
-    @Test
-    void orphanRemoval() {
-        // category с 2 товарами; saveAndFlush; em.clear();
-        // Category managed = findById;
-        // Product removeMe = managed.getProducts().stream()... (managed-элемент!)
-        // managed.getProducts().remove(removeMe);  // em.remove НЕ вызывается
-        // Statistics.clear(); em.flush(); -> 1 delete
-        // SELECT COUNT(*) WHERE id = удалённый -> 0;  WHERE category_id -> 1
-    }
-}
+// com/example/jpalab/service/ProductLifecycleService.java
+
+// TODO: find(category) -> найти товар по имени в getProducts() ->
+//       getProducts().remove(product)  (без em.remove!)
+void removeProductFromCategory(Long categoryId, String productName);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t06.TASK03Test#orphanRemoval
 ```
-- Критерий приёмки: Тест: после flush удалённый товар исчез из `products` (SELECT по его id пуст), второй товар категории на месте; статистика: ровно 1 prepared statement и 1 delete (без ручного `em.remove`); в комментарии зафиксировано: `orphanRemoval = true` превращает «выпадение из коллекции» в удаление сущности (и неявно влечёт cascade REMOVE).
-- Подсказка (не решение): «осиротевший» элемент коллекции при orphanRemoval = удалённая сущность. Удалять из коллекции нужно именно managed-экземпляр.
+- Критерий приёмки: Тест: данные — категория с товарами "Keep" и "RemoveMe"; после вызова ровно 1 prepared statement и 1 entity DELETE (`delete from products where id = ?`); в БД 1 товар с этим `category_id`; товара "RemoveMe" в таблице `products` нет.
+- Подсказка (не решение): orphanRemoval: управляемый элемент, вычеркнутый из managed-коллекции, становится «сиротой» и удаляется при flush; отдельного remove ему не положено.

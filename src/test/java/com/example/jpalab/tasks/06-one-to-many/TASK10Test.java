@@ -1,8 +1,9 @@
 package com.example.jpalab.tasks.t06;
 
 import com.example.jpalab.entity.Category;
-import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -25,12 +26,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * flush != commit: em.flush() лишь «выталкивает» SQL в транзакцию, а
  * rollback отменяет ВСЁ, включая flushed-INSERT-ы. Внутренний flush
  * ничего не фиксирует, если транзакция завершена откатом.
+ *
+ * Добавление двух товаров в managed-категорию выполняет ВАШ метод сервиса
+ * `void addTwoProductsToCategory(Long categoryId)` в `ProductLifecycleService`
+ * (загружает managed-категорию, добавляет 2 товара с обратными ссылками,
+ * flush) — до его реализации тест красный.
  */
 @SpringBootTest
 class TASK10Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -56,18 +65,11 @@ class TASK10Test {
         Long categoryId = inTx(() -> categoryRepository.save(
                 Category.builder().name("RollbackCat").build()).getId());
 
-        // tx: добавляем 2 товара в коллекцию managed-категории, flush
-        // внутри транзакции, затем rollback
+        // tx: 2 товара в коллекцию managed-категории — ВАШИМ методом,
+        // flush внутри транзакции, затем rollback
         assertThatThrownBy(() -> inTx(() -> {
-            Category managed = categoryRepository.findById(categoryId).orElseThrow();
-            Product p1 = Product.builder()
-                    .name("RB1").price(new BigDecimal("1.00")).stockQuantity(1).build();
-            Product p2 = Product.builder()
-                    .name("RB2").price(new BigDecimal("2.00")).stockQuantity(1).build();
-            p1.setCategory(managed);
-            p2.setCategory(managed);
-            managed.getProducts().add(p1);
-            managed.getProducts().add(p2);
+            TaskTestSupport.invoke(lifecycleService, "addTwoProductsToCategory",
+                    new Class<?>[]{Long.class}, categoryId);
             em.flush(); // INSERT-ы выполнены В РАМКАХ транзакции
             throw new RuntimeException("rollback for test");
         })).isInstanceOf(RuntimeException.class);

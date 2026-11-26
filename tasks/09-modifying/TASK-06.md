@@ -14,5 +14,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t09.TASK06Test#clearAutomaticallyMakesFindFresh
 ```
-- Критерии приёмки: Тест `clearAutomaticallyMakesFindFresh` зелёный: метод возвращает 2; немедленный `findById` обоих товаров (без `em.clear()` в тесте) возвращает 99.99; в комментарии к методу записано, что происходит без этого флага (в PC остаются «старые» managed-сущности, и find сразу после bulk UPDATE вернёт прежние значения).
+- Критерий приёмки: Тест `clearAutomaticallyMakesFindFresh` зелёный: метод возвращает 2; немедленный `findById` обоих товаров (без `em.clear()` в тесте) возвращает 99.99; в комментарии к методу записано, что происходит без этого флага (в PC остаются «старые» managed-сущности, и find сразу после bulk UPDATE вернёт прежние значения).
 - Подсказка (не решение): У `@Modifying` два флага: `flushAutomatically` и `clearAutomatically` — перечитайте, что делает каждый, и подберите нужный.

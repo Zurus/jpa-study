@@ -1,37 +1,8 @@
 # Задание 05. Проекция с JOIN: товар + имя категории (новый интерфейс)
-
-Тема: 10 — Проекции
-Сложность: 5/10
-
-## Цель
-Собрать проекцию с JOIN по связанной сущности: имя товара, ИМЯ КАТЕГОРИИ
-(поле из JOIN-поля) и цена. Открыть новый интерфейс-проекцию и метод
-репозитория, фильтрующий по имени категории.
-
-## Входные данные (тест самодостаточен)
-Категории `Audio`, `Home`; товары: `Headphones` 300.00 stock 1 (Audio),
-`Mic` 100.00 stock 2 (Audio), `Speaker` 200.00 stock 1 (Home). Метод
-вызывается с `categoryName = "Audio"`.
-
-## Что нужно сделать
-1. Создайте интерфейс в пакете `com.example.jpalab.dto`:
-   ```java
-   public interface ProductCategoryView {
-       String getProductName();
-       String getCategoryName();
-       BigDecimal getPrice();
-   }
-   ```
-2. В `ProductRepository` добавьте метод:
-   - сигнатура: `List<ProductCategoryView> withCategoryName(@Param("categoryName") String categoryName)`
-   - `@Query`:
-     `SELECT p.name AS productName, c.name AS categoryName, p.price AS price FROM Product p JOIN p.category c WHERE c.name = :categoryName ORDER BY p.price DESC, p.name ASC`
-   - алиасы в SELECT обязательны для каждого столбца: Spring Data сопоставляет
-     имена столбцов со свойствами интерфейса (getProductName/getCategoryName/getPrice);
-     без алиаса столбец получит имя null и getter вернёт null;
-   - INNER JOIN: товары без категории не попадут (здесь все есть).
-
-## Стартовый код
+- Тема: Проекции
+- Difficulty: 5
+- Что нужно сделать: (1) Создайте открытый интерфейс-проекцию `ProductCategoryView` в пакете `com.example.jpalab.dto` с getter'ами `String getProductName()`, `String getCategoryName()`, `BigDecimal getPrice()`. (2) В `ProductRepository` добавьте JPQL-метод `List<ProductCategoryView> withCategoryName(@Param("categoryName") String categoryName)` с JOIN по категории: возвращает имя товара, ИМЯ категории и цену товаров той категории, имя которой равно `:categoryName`. Сортировка: цена по убыванию, тай-брейк — имя товара по возрастанию.
+- Стартовый код:
 ```java
 // src/main/java/com/example/jpalab/dto/ProductCategoryView.java (новый файл)
 
@@ -44,14 +15,13 @@ public interface ProductCategoryView {
 ```java
 // com/example/jpalab/repository/ProductRepository.java
 
-// TODO: реализовать — @Query, SELECT p.name AS productName, c.name AS
-//       categoryName, p.price, JOIN p.category c, c.name = :categoryName,
-//       ORDER BY p.price DESC, p.name ASC
+// TODO: @Query — JOIN p.category, c.name = :categoryName,
+//       SELECT: имя товара, имя категории, цена; ORDER BY price DESC, name ASC
 List<ProductCategoryView> withCategoryName(@Param("categoryName") String categoryName);
 ```
-
-## Проверка
-Тест: `src/test/java/com/example/jpalab/tasks/10-projections/TASK05Test.java`
-Команда: `mvn -Dtest=com.example.jpalab.tasks.t10.TASK05Test#projectionWithJoinToCategory`
-
-Тест красный до реализации, зелёный после правильной.
+- Тест для проверки:
+```bash
+mvn -Dtest=com.example.jpalab.tasks.t10.TASK05Test#projectionWithJoinToCategory
+```
+- Критерий приёмки: Тест: категории Audio (Headphones 300.00, Mic 100.00) и Home (Speaker 200.00); вызов с "Audio" — ровно 2 строки: Headphones/Mic, обе с getCategoryName() = "Audio", Speaker отсутствует.
+- Подсказка (не решение): для open interface каждый столбец SELECT получает алиас, совпадающий с именем свойства (productName, categoryName, price); INNER JOIN по категории сам исключает товары без категории.

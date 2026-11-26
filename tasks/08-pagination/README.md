@@ -23,9 +23,9 @@
 Диапазон difficulty: 1–10.
 
 ## Как проверить задание
-1. Новые методы с `Pageable`/`Slice`/`@EntityGraph` добавляйте в `src/main/java/com/example/jpalab/repository/ProductRepository.java` только в объёме задания (образцы методов уже есть в репозитории).
-2. Создайте тест-класс `PaginationTask01Test` … `PaginationTask10Test` в `src/test/java/com/example/jpalab/repository/` (`@DataJpaTest`, AssertJ).
-3. Для подсчёта SQL используйте Statistics (образец: `PaginationExampleTest.java`); для честного замера создавайте данные, затем `em.flush(); em.clear();`.
-4. Запустите: `mvn -Dtest=PaginationTask01Test test` (замените имя).
+1. Выполните «Что нужно сделать» из TASK-XX.md: добавьте указанный метод — в `ProductRepository` (задания 01, 02, 03, 06, 08, 09, 10) или `ProductService` (задание 07) — строго в объёме задания.
+2. Тесты заданий созданы заранее (пакет `com.example.jpalab.tasks.t08`, по классу на задание: `TASK01Test` … `TASK10Test`) — свои тесты писать не нужно. Тесты сами меряют SQL через Hibernate Statistics.
+3. Запустите команду из блока «Тест для проверки» в TASK-XX.md.
+4. Задание выполнено, когда тест зелёный и выполнен «Критерий приёмки» из TASK-XX.md (поведение + точные числа prepared statements/метаданных Page).
 
 Решения в этой папке не раскрываются.

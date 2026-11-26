@@ -4,11 +4,14 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -20,8 +23,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * nullable-колонка FK позволяет null; Hibernate различает «поле не трогай»
  * и «поставь null» по ссылке на объект: setCategory(null) → UPDATE с NULL-
  * параметром. Повторная загрузка сущности проходит без ошибок.
+ *
+ * Отвязку выполняет ВАШ метод сервиса
+ * `Product detachProductFromCategory(Long productId)` в
+ * `ProductLifecycleService` — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK03Test {
 
     @Autowired
@@ -29,6 +37,9 @@ class TASK03Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -44,9 +55,9 @@ class TASK03Test {
                 .category(a)
                 .build());
 
-        // отвязка + flush: без NPE и без падения
-        product.setCategory(null);
-        em.flush();
+        // отвязка ВАШИМ методом + flush внутри сервиса: без NPE и без падения
+        TaskTestSupport.invoke(lifecycleService, "detachProductFromCategory",
+                new Class<?>[]{Long.class}, product.getId());
 
         // FK в БД стал NULL
         Object fk = em.createNativeQuery(

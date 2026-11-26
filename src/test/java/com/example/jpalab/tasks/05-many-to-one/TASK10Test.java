@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +30,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * пока транзакция не закоммичена, «обновлённый» FK живёт только
  * в БД-транзакции, и rollback его стирает.
  *
+ * Перевод товара в другую категорию (внутри откатываемой транзакции теста)
+ * выполняет ВАШ метод сервиса `Product moveProductToCategory(Long productId,
+ * String categoryName)` в `ProductLifecycleService` — до его реализации
+ * тест красный.
+ *
  * Тест самодостаточен: своя настройка в отдельной транзакции (commit),
  * откатываемая транзакция с изменением FK, проверка в новых транзакциях,
  * очистка БД в @AfterEach.
@@ -40,6 +47,9 @@ class TASK10Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -88,11 +98,12 @@ class TASK10Test {
         Long bId = (Long) ids[1];
         Long productId = (Long) ids[2];
 
-        // откатываемая транзакция: перевод товара в B + flush, БЕЗ commit
+        // откатываемая транзакция: перевод товара в B ВАШИМ методом + flush,
+        // БЕЗ commit
         try {
             tx.executeWithoutResult(status -> {
-                Product product = em.find(Product.class, productId);
-                product.setCategory(em.find(Category.class, bId));
+                TaskTestSupport.invoke(lifecycleService, "moveProductToCategory",
+                        new Class<?>[]{Long.class, String.class}, productId, "B");
                 em.flush();
                 // принудительный откат транзакции
                 throw new RuntimeException("rollback for the test");

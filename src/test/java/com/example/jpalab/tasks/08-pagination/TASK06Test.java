@@ -2,6 +2,7 @@ package com.example.jpalab.tasks.t08;
 
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 
@@ -28,8 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * для длинных листингов, где счётчик «всего» фронтенду не нужен:
  * каждый шаг страницы стоит один запрос вместо двух.
  *
- * Методы в репозиторий НЕ добавляются: Slice берётся из уже существующего
- * derived-метода findAllByOrderByPriceAsc(Pageable) (пример темы 07).
+ * Страницу со стоимостью от minPrice формируют ВАШИ методы репозитория:
+ * `Page<Product> findPricedAtLeast(BigDecimal minPrice, Pageable pageable)`
+ * (зад. 01) и `Slice<Product> findPricedSlice(BigDecimal minPrice,
+ * Pageable pageable)` — до их реализации тест красный.
  */
 @DataJpaTest
 class TASK06Test {
@@ -59,26 +63,30 @@ class TASK06Test {
 
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
 
-        // Page: count + данные
+        // Page: count + данные (товары от 200.00: P2, P3, P4)
         statistics.clear();
-        Page<Product> page = productRepository.findAll(PageRequest.of(0, 2));
+        Page<Product> page = TaskTestSupport.invoke(productRepository,
+                "findPricedAtLeast", new Class<?>[]{BigDecimal.class, Pageable.class},
+                new BigDecimal("200.00"), PageRequest.of(0, 2));
         long pageSql = statistics.getPrepareStatementCount();
         assertThat(pageSql).isEqualTo(2);
 
         // Slice: только данные (count-запрос не выполняется)
         statistics.clear();
-        Slice<Product> slice = productRepository.findAllByOrderByPriceAsc(PageRequest.of(0, 2));
+        Slice<Product> slice = TaskTestSupport.invoke(productRepository,
+                "findPricedSlice", new Class<?>[]{BigDecimal.class, Pageable.class},
+                new BigDecimal("200.00"), PageRequest.of(0, 2));
         long sliceSql = statistics.getPrepareStatementCount();
         assertThat(sliceSql).isEqualTo(1);
 
-        // контент страниц совпадает: P1, P2
+        // контент страниц совпадает: P2, P3
         List<Long> pageIds = page.getContent().stream().map(Product::getId).toList();
         List<Long> sliceIds = slice.getContent().stream().map(Product::getId).toList();
         assertThat(sliceIds).containsExactlyElementsOf(pageIds);
         assertThat(slice.getContent()).extracting(Product::getName)
-                .containsExactly("P1", "P2");
+                .containsExactly("P2", "P3");
 
-        // Slice отвечает на «есть ещё?»: 4 товара, страница 0 размера 2
+        // Slice отвечает на «есть ещё?»: 3 товара от 200, страница 0 размера 2
         assertThat(slice.hasNext()).isTrue();
         assertThat(slice.hasPrevious()).isFalse();
     }

@@ -1,9 +1,10 @@
 package com.example.jpalab.tasks.t05;
 
-import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.TransientPropertyValueException;
@@ -41,6 +42,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *   org.springframework.dao.InvalidDataAccessApiUsageException;
  * - транзакция откатывается, и в закоммиченной БД строки товара НЕТ.
  *
+ * Сценарий «товар с новой (transient) категорией» выполняет ВАШ метод
+ * `Product saveProductWithTransientCategory(String productName, BigDecimal price,
+ * int stockQuantity, String categoryName)` в `ProductLifecycleService` — до его
+ * реализации тест красный.
+ *
  * Поэтому состояние «закоммиченной» БД проверяется в новой транзакции —
  * тест самодостаточен: @SpringBootTest + TransactionTemplate,
  * своя настройка и очистка.
@@ -53,6 +59,9 @@ class TASK04Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -78,19 +87,13 @@ class TASK04Test {
 
     @Test
     void transientCategoryRejected() {
-        // НОВАЯ (transient) категория — без save
-        Category fresh = Category.builder().name("Fresh").build();
-        Product product = Product.builder()
-                .name("WithTransient")
-                .price(new BigDecimal("10.00"))
-                .stockQuantity(1)
-                .category(fresh)
-                .build();
-
-        // сохранение (persist + flush) завершается исключением;
-        // транзакция откатывается
+        // ВАШ метод создаёт новый (transient) товар и новую (transient)
+        // категорию и сохраняет товар — сохранение (persist + flush)
+        // завершается исключением; транзакция откатывается
         assertThatThrownBy(() -> tx.executeWithoutResult(status ->
-                productRepository.saveAndFlush(product)))
+                TaskTestSupport.invoke(lifecycleService, "saveProductWithTransientCategory",
+                        new Class<?>[]{String.class, BigDecimal.class, int.class, String.class},
+                        "WithTransient", new BigDecimal("10.00"), 1, "Fresh")))
                 .isInstanceOf(InvalidDataAccessApiUsageException.class)
                 .hasRootCauseInstanceOf(TransientPropertyValueException.class);
 

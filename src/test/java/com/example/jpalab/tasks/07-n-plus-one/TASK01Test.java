@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Hibernate;
@@ -12,6 +14,7 @@ import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -22,11 +25,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Тема 07, задание 01. Измерить N+1 на @ManyToOne (LAZY).
  *
  * Схема «1+N»: одна SELECT по таблице сущностей (products) + по одной
- * SELECT на каждую LAZY-ассоциацию (category), которую мы «дёргаем» в
- * цикле. Без em.clear() после создания данных N+1 не видно —
+ * SELECT на каждую LAZY-ассоциацию (category), которую сервис «дёргает»
+ * в цикле. Без em.clear() после создания данных N+1 не видно —
  * persistence context уже «знает» все объекты.
+ *
+ * Наивный сервисный сценарий (findAll + цикл по getCategory().getName())
+ * реализует ВАШ метод `List<String> listProductsWithCategoryNames()` в
+ * `ProductService` (строки вида "<name> [<categoryName>]", по всем товарам)
+ * — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductService.class)
 class TASK01Test {
 
     @Autowired
@@ -34,6 +43,9 @@ class TASK01Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductService productService;
 
     @PersistenceContext
     private EntityManager em;
@@ -58,20 +70,14 @@ class TASK01Test {
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
         statistics.clear();
 
-        // 1 SELECT по products
-        List<Product> products = productRepository.findAll();
-        assertThat(products).hasSize(5);
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+        // ВАШ «наивный» сервисный метод: 1 SELECT по products
+        // + 5 SELECT по категориям (LAZY-инициализация в цикле)
+        List<String> rows = TaskTestSupport.invoke(productService,
+                "listProductsWithCategoryNames", new Class<?>[]{});
+        assertThat(rows).containsExactlyInAnyOrder(
+                "N1 P1 [N1 C1]", "N1 P2 [N1 C2]", "N1 P3 [N1 C3]",
+                "N1 P4 [N1 C4]", "N1 P5 [N1 C5]");
 
-        // категории ещё НЕ инициализированы (LAZY-прокси)
-        for (Product product : products) {
-            assertThat(Hibernate.isInitialized(product.getCategory())).isFalse();
-        }
-
-        // цикл доступа к категориям: +5 SELECT (по одному на товар)
-        for (Product product : products) {
-            product.getCategory().getName();
-        }
         // итого 1 + N = 6
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(6);
     }

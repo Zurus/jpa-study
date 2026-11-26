@@ -1,17 +1,17 @@
 # Задание 05. Identity: одна инстанция категории на два товара
 - Тема: @ManyToOne (Product → Category)
 - Difficulty: 5
-- Что нужно сделать: Тест создан заранее (TASK05Test): два товара в одной категории. Загружаются оба товара из БД (свежий persistence context, категории — прокси), категория инициализируется через ПЕРВЫЙ товар, затем сравниваются инстанции у ВТОРОГО. Работает identity-карта первого уровня кэша.
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `Category loadCategoryOfProduct(Long productId)`: в своей транзакции загрузить товар по id и вернуть его категорию (`product.getCategory()` — LAZY-инициализация). Заранее созданный тест (TASK05Test): два товара в одной категории; категории у обоих товаров загружаются через ваш метод; работает identity-карта первого уровня кэша — у второго товара должна получиться ТОТ ЖЕ объект категории, что и у первого.
 - Стартовый код:
 ```java
-// Тест создан заранее: com.example.jpalab.tasks.t05.TASK05Test
-// 2 товара, 1 категория; flush + clear; p1, p2 = findById
-// c1 = p1.getCategory() (инициализация); c2 = p2.getCategory()
-// assertThat(c2).isSameAs(c1); на категории ушёл ровно 1 SELECT
+// com/example/jpalab/service/ProductLifecycleService.java
+
+// TODO: find(product) -> return product.getCategory()
+Category loadCategoryOfProduct(Long productId);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t05.TASK05Test#sameCategoryInstance
 ```
-- Критерий приёмки: Тест: до первого доступа `Hibernate.isInitialized(p2.getCategory()) == false` (прокси); после инициализации через p1 — `p2.getCategory()` — ТОТ ЖЕ объект (`isSameAs`), а не копия; в SQL-логе на загрузку категорий ушёл ровно 1 SELECT (второй товар не заставлял БД повторять запрос); в комментарии зафиксировано: key = (entity name, id) в persistence context.
+- Критерий приёмки: Тест: до первого доступа категории у обоих товаров не инициализированы (прокси); ваш метод для первого товара инициализирует категорию; для второго — `isSameAs` с первым (не копия); всего ровно 3 prepared statement (2 по товарам + 1 по категории — повторного запроса к категории нет); в комментарии зафиксировано: key = (entity name, id) в persistence context.
 - Подсказка (не решение): persistence context хранит инстанцию на (сущность, id); второй запрос по той же сущности вернёт уже загруженный объект.

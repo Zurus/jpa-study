@@ -4,12 +4,15 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 
@@ -22,8 +25,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * FK — это правило БД: строка, на которую указывают другие строки,
  * не удаляется. Порядок удаления — сначала «много» (товары),
  * потом «один» (категория) — либо каскад со стороны коллекции (тема 06).
+ *
+ * «Правильный порядок» выполняет ВАШ метод сервиса
+ * `void deleteCategoryWithProducts(Long categoryId)` в
+ * `ProductLifecycleService` (сначала удаляет товары категории, затем её
+ * саму, в одной транзакции) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK08Test {
 
     @Autowired
@@ -31,6 +40,9 @@ class TASK08Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -64,18 +76,20 @@ class TASK08Test {
                 .getSingleResult();
         assertThat(fk).isEqualTo(1L);
 
-        // правильный порядок: сначала товары, потом категория
+        // правильный порядок — ВАШИМ методом (одна транзакция сервиса)
         em.clear();
-        productRepository.deleteAll();
-        Category reloaded = categoryRepository.findById(category.getId()).orElseThrow();
-        categoryRepository.delete(reloaded);
-        em.flush();
+        TaskTestSupport.invoke(lifecycleService, "deleteCategoryWithProducts",
+                new Class<?>[]{Long.class}, category.getId());
 
-        // категория удалена
-        Long remaining = (Long) em.createNativeQuery(
+        // категория и товары удалены
+        Long remainingCategories = (Long) em.createNativeQuery(
                 "SELECT COUNT(*) FROM categories WHERE id = :id", Long.class)
                 .setParameter("id", category.getId())
                 .getSingleResult();
-        assertThat(remaining).isZero();
+        assertThat(remainingCategories).isZero();
+        Long remainingProducts = (Long) em.createNativeQuery(
+                "SELECT COUNT(*) FROM products", Long.class)
+                .getSingleResult();
+        assertThat(remainingProducts).isZero();
     }
 }

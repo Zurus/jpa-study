@@ -1,14 +1,13 @@
 # Задание 10. Откат транзакции: FK возвращается
 - Тема: @ManyToOne (Product → Category)
 - Difficulty: 10
-- Что нужно сделать: Тест в РЕАЛЬНЫХ транзакциях создан заранее (TASK10Test, `@SpringBootTest` + `TransactionTemplate`): в транзакции товар переводится из категории A в B и транзакция завершается ОТКАТОМ. Доказывается, что в новой транзакции товар снова в A: и по значению FK в БД, и по состоянию при свежей загрузке. Тест самодостаточен (свои setup/commit/очистка).
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `void moveProductToCategory(Long productId, String categoryName)` — в транзакции (простой `@Transactional`, REQUIRED — вливается в транзакцию вызывающего кода) загрузить товар и перевести его в существующую категорию по имени. Заранее созданный тест (TASK10Test, `@SpringBootTest` + `TransactionTemplate`) вызывает ваш метод внутри внешней транзакции, которая завершается ОТКАТОМ, и доказывается: в новой транзакции товар снова в категории A — и по значению FK в БД, и по состоянию при свежей загрузке.
 - Стартовый код:
 ```java
-// Тест создан заранее: com.example.jpalab.tasks.t05.TASK10Test
-// @SpringBootTest + TransactionTemplate (см. @TestConfiguration TestBeans)
-// setup (отдельная tx, commit): A, B, товар в A;
-// tx: setCategory(B) + flush -> принудительный rollback;
-// новая tx: SELECT category_id -> id(A); новая загрузка -> категория "A"
+// com/example/jpalab/service/ProductLifecycleService.java
+
+// TODO: @Transactional: find(product) -> find category by name -> setCategory
+void moveProductToCategory(Long productId, String categoryName);
 ```
 - Тест для проверки:
 ```bash

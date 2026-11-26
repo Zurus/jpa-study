@@ -4,6 +4,8 @@ import com.example.jpalab.entity.Category;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.CategoryRepository;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.service.ProductService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -28,9 +30,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Тема 07, задание 10. N+1 в сервисной логике (реальная транзакция).
  *
  * «Сервисный» сценарий: загрузить список товаров и для каждого собрать
- * строку "<name> [<categoryName>]". Сначала наивно (findAll + цикл по
- * getCategory — 1 + 5 SQL), затем через существующий fetch join-метод
- * findAllWithCategoryFetched (1 SQL). Собранные строки совпадают —
+ * строку "<name> [<categoryName>]". Сначала наивно — ВАШИМ методом
+ * `List<String> listProductsWithCategoryNames()` в `ProductService`
+ * (findAll + цикл по getCategory — 1 + 5 SQL), затем через fetch graph —
+ * ВАШИМ методом репозитория `List<Product> findAllWithCategoryGraph()`
+ * (`@EntityGraph` на `category`, 1 SQL). Собранные строки совпадают —
  * выбор fetch-стратегии — вопрос производительности, а не корректности.
  *
  * Сценарий выполняется в реальных транзакциях
@@ -45,6 +49,9 @@ class TASK10Test {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private ProductService productService;
 
     @PersistenceContext
     private EntityManager em;
@@ -92,23 +99,21 @@ class TASK10Test {
 
         Statistics statistics = em.unwrap(Session.class).getSessionFactory().getStatistics();
 
-        // фаза «наивно»: findAll + цикл — 1 SELECT по товарам + 5 по категориям
+        // фаза «наивно»: ВАШ сервисный метод (как в задании 01) —
+        // 1 SELECT по товарам + 5 по категориям
         List<String> naive = inTx(() -> {
             statistics.clear();
-            List<Product> products = productRepository.findAll();
-            List<String> rows = new ArrayList<>();
-            for (Product product : products) {
-                rows.add(product.getName() + " [" + product.getCategory().getName() + "]");
-            }
-            return rows;
+            return TaskTestSupport.invoke(productService,
+                    "listProductsWithCategoryNames", new Class<?>[]{});
         });
         assertThat(naive).hasSize(5);
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(6);
 
-        // фаза «fetch join»: существующий метод из репозитория — 1 SELECT
+        // фаза «fetch graph»: ВАШ метод репозитория — 1 SELECT
         List<String> fetched = inTx(() -> {
             statistics.clear();
-            List<Product> products = productRepository.findAllWithCategoryFetched();
+            List<Product> products = TaskTestSupport.invoke(productRepository,
+                    "findAllWithCategoryGraph", new Class<?>[]{});
             List<String> rows = new ArrayList<>();
             for (Product product : products) {
                 rows.add(product.getName() + " [" + product.getCategory().getName() + "]");

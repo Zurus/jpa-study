@@ -4,7 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * Вспомогательный класс для заранее созданных тестов заданий (темы 01–11).
+ * Вспомогательный класс для заранее созданных тестов заданий (темы 01–13).
  *
  * Тесты вызывают метод целевого объекта (репозитория или сервиса) по имени и точной сигнатуре.
  * Если студент ещё не добавил метод в src/main/java, тест падает с понятным
@@ -14,6 +14,32 @@ import java.lang.reflect.Method;
 public final class TaskTestSupport {
 
     private TaskTestSupport() {
+    }
+
+    /**
+     * Создаёт публичный no-arg экземпляр класса по FQCN (рефлексивно).
+     *
+     * Для классов-артефактов студента, которых ещё нет в src/main/java
+     * (например, ProductSpecifications из темы 13): модуль компилируется
+     * до реализации, а тест падает с понятным сообщением.
+     *
+     * @param className полное имя класса студента
+     * @return новый экземпляр
+     * @throws AssertionError если класс ещё не создан или нет no-arg конструктора
+     */
+    public static Object newInstance(String className) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            return clazz.getDeclaredConstructor().newInstance();
+        } catch (ClassNotFoundException e) {
+            throw new AssertionError(
+                    "Задание не реализовано: класс " + className + " не найден."
+                            + " Создайте его в src/main/java (публичный конструктор без параметров).", e);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(
+                    "Задание не реализовано: не удалось создать экземпляр " + className
+                            + " (нужен публичный no-arg конструктор).", e);
+        }
     }
 
     /**

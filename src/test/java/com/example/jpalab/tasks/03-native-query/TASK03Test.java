@@ -3,6 +3,7 @@ package com.example.jpalab.tasks.t03;
 import com.example.jpalab.dto.ProductNamePrice;
 import com.example.jpalab.entity.Product;
 import com.example.jpalab.repository.ProductRepository;
+import com.example.jpalab.tasks.TaskTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -16,16 +17,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Тема 03, задание 03. Проекция в Object[] (native).
  *
- * Метод с таким @Query УЖЕ ЕСТЬ в ProductRepository (используем его):
- * <pre>{@code
- * @Query(value = """
- *       SELECT p.id, p.name, p.price
- *       FROM products p
- *       WHERE p.price > :minPrice
- *       ORDER BY p.name ASC, p.id ASC
- *       """, nativeQuery = true)
- * List<Object[]> nativeSearchByPriceAbove(@Param("minPrice") BigDecimal minPrice);
- * }</pre>
+ * Студент добавляет в `ProductRepository` native-метод
+ * `List<Object[]> nativeIdNamePriceAbove(BigDecimal minPrice)`:
+ * столбцы в строке — id (Long), name (String), price (BigDecimal),
+ * строго больше :minPrice, порядок — по имени asc, затем id asc.
+ * До реализации метода тест красный.
  * Тест вручную маппит строки в record ProductNamePrice.
  */
 @DataJpaTest
@@ -49,8 +45,8 @@ class TASK03Test {
         save("Beta", "200.00");
         save("Gamma", "300.00");
 
-        List<Object[]> rows = productRepository.nativeSearchByPriceAbove(
-                new BigDecimal("150.00"));
+        List<Object[]> rows = TaskTestSupport.invoke(productRepository, "nativeIdNamePriceAbove",
+                new Class<?>[]{BigDecimal.class}, new BigDecimal("150.00"));
 
         // каждая строка — массив из 3 элементов: Long, String, BigDecimal
         assertThat(rows).hasSize(2);

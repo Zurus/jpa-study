@@ -23,9 +23,9 @@
 Диапазон difficulty: 1–10.
 
 ## Как проверить задание
-1. Добавьте метод в `src/main/java/com/example/jpalab/repository/ProductRepository.java` (для тем про категории можно в `CategoryRepository.java`), выполнив требование «Что нужно сделать».
-2. Создайте тест-класс в `src/test/java/com/example/jpalab/repository/`, например `DerivedTask01Test.java`, в стиле существующих тестов (`@DataJpaTest`, AssertJ, свои данные в каждом тесте).
-3. Запустите: `mvn -Dtest=DerivedTask01Test test` (замените имя на имя вашего класса).
-4. Задание выполнено, если: тест зелёный и «Критерий приёмки» из TASK-XX.md выполнен (тест + фрагменты SQL-лога, где требуется).
+1. Выполните «Что нужно сделать» из TASK-XX.md: добавьте требуемый метод в `src/main/java/com/example/jpalab/repository/ProductRepository.java` (для заданий про категории — `CategoryRepository.java`).
+2. Тесты заданий созданы заранее (пакет `com.example.jpalab.tasks.t01`, по классу на задание: `TASK01Test` … `TASK10Test`) — свои тесты писать не нужно.
+3. Запустите команду из блока «Тест для проверки» в TASK-XX.md.
+4. Задание выполнено, когда тест зелёный и выполнен «Критерий приёмки» из TASK-XX.md (поведение + фрагменты SQL-лога, где требуется).
 
-Имена тест-классов: `DerivedTask01Test` … `DerivedTask10Test`. Решения в этой папке не раскрываются.
+Решения в этой папке не раскрываются.

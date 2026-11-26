@@ -1,13 +1,14 @@
 package com.example.jpalab.tasks.t05;
 
-import com.example.jpalab.entity.Category;
-import com.example.jpalab.repository.CategoryRepository;
+import com.example.jpalab.service.ProductLifecycleService;
+import com.example.jpalab.tasks.TaskTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,12 +28,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * Важно: Hibernate НЕ заполняет аудитные поля при native-вставке,
  * поэтому created_at/updated_at передаются явно.
+ *
+ * Настоящую (реальную) категорию для успешного INSERT создаёт ВАШ метод
+ * сервиса `Long createCategory(String name)` в `ProductLifecycleService`
+ * (сохраняет категорию и возвращает её id) — до его реализации тест красный.
  */
 @DataJpaTest
+@Import(ProductLifecycleService.class)
 class TASK07Test {
 
     @Autowired
-    private CategoryRepository categoryRepository;
+    private ProductLifecycleService lifecycleService;
 
     @PersistenceContext
     private EntityManager em;
@@ -52,16 +58,17 @@ class TASK07Test {
 
     @Test
     void dbEnforcesFk() {
-        // реальный id категории
-        Category category = categoryRepository.saveAndFlush(
-                Category.builder().name("Real").build());
-
         // INSERT с вымышленным category_id — нарушение FK
         assertThatThrownBy(() -> nativeInsert("FakeFk", 999_999L))
                 .isInstanceOf(ConstraintViolationException.class);
 
+        // реальная категория — ВАШИМ методом; INSERT с её id — проходит
+        Long categoryId = TaskTestSupport.invoke(lifecycleService, "createCategory",
+                new Class<?>[]{String.class}, "Real");
+        assertThat(categoryId).isNotNull();
+
         // INSERT с существующим id — проходит
-        nativeInsert("GoodFk", category.getId());
+        nativeInsert("GoodFk", categoryId);
         Long count = (Long) em.createNativeQuery("SELECT COUNT(*) FROM products", Long.class)
                 .getSingleResult();
         assertThat(count).isEqualTo(1);

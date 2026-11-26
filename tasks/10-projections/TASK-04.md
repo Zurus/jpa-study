@@ -1,40 +1,19 @@
 # Задание 04. Конструкторное выражение в класс с полем из JOIN
-
-Тема: 10 — Проекции
-Сложность: 4/10
-
-## Цель
-Собрать DTO-класс (не record) с конструктором из 5 аргументов, где последний
-аргумент — поле из связанной сущности (`p.category.id`). Товар без категории
-останется в выборке, а его `categoryId` будет null. Используется существующий
-`com.example.jpalab.dto.ProductDto` (порядок полей: id, name, price,
-stockQuantity, categoryId).
-
-## Входные данные (тест самодостаточен)
-Категории `CA`, `CB`; товары: `Alpha` 100.00 stock 1 (CA), `Beta` 200.00
-stock 2 (CB), `Gamma` 300.00 stock 3 (без категории). Метод вызывается с
-`minPrice = 100.00`.
-
-## Что нужно сделать
-1. В `ProductRepository` добавьте метод:
-   - сигнатура: `List<ProductDto> fullDtosForPricedAtLeast(@Param("minPrice") BigDecimal minPrice)`
-   - `@Query`:
-     `SELECT new com.example.jpalab.dto.ProductDto(p.id, p.name, p.price, p.stockQuantity, p.category.id) FROM Product p WHERE p.price >= :minPrice ORDER BY p.price DESC, p.id ASC`
-   - порядок аргументов конструктора: id, name, price, stockQuantity, categoryId;
-   - `Gamma` (без категории) должен попасть в выборку с `categoryId = null`.
-
-## Стартовый код
+- Тема: Проекции
+- Difficulty: 4
+- Что нужно сделать: В `ProductRepository` добавьте JPQL-метод `List<ProductDto> fullDtosForPricedAtLeast(@Param("minPrice") BigDecimal minPrice)` — конструкторное выражение в СУЩЕСТВУЮЩИЙ класс `com.example.jpalab.dto.ProductDto` (порядок полей: id, name, price, stockQuantity, categoryId), где последний аргумент — поле СВЯЗАННОЙ сущности (id категории). В выборку попадают товары с ценой НЕ МЕНЬШЕ `:minPrice` (граница включена); товар без категории остаётся в выборке с `categoryId = null`. Сортировка: цена по убыванию, тай-брейк — id по возрастанию.
+- Стартовый код:
 ```java
 // com/example/jpalab/repository/ProductRepository.java
 
-// TODO: реализовать — @Query, SELECT new com.example.jpalab.dto.ProductDto(
-//       p.id, p.name, p.price, p.stockQuantity, p.category.id),
-//       price >= :minPrice, ORDER BY p.price DESC, p.id ASC
+// TODO: @Query — конструкторное выражение в ProductDto (5 аргументов,
+//       последний — id категории), price >= :minPrice,
+//       ORDER BY price DESC, id ASC
 List<ProductDto> fullDtosForPricedAtLeast(@Param("minPrice") BigDecimal minPrice);
 ```
-
-## Проверка
-Тест: `src/test/java/com/example/jpalab/tasks/10-projections/TASK04Test.java`
-Команда: `mvn -Dtest=com.example.jpalab.tasks.t10.TASK04Test#classDtoProjectionWithJoinField`
-
-Тест красный до реализации, зелёный после правильной.
+- Тест для проверки:
+```bash
+mvn -Dtest=com.example.jpalab.tasks.t10.TASK04Test#classDtoProjectionWithJoinField
+```
+- Критерий приёмки: Тест: 3 товара (100.00/CA, 200.00/CB, 300.00/без категории), вызов с 100.00 — 3 DTO в порядке 300.00, 200.00, 100.00; у Gamma (без категории) categoryId = null, остальные поля заполнены.
+- Подсказка (не решение): доступ к полю связанной сущности из JPQL — через точку (`p.category.id`); для null-категории конструктор получит null в соответствующий аргумент.

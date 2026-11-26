@@ -1,25 +1,17 @@
-# Задание 06. Stale-коллекция: вставка «со стороны товара»
+# Задание 06. Устаревшая коллекция и refresh
 - Тема: @OneToMany (Category → products)
 - Difficulty: 6
-- Что нужно сделать: Тест создан заранее (TASK06Test): загрузите категорию A с 1 товаром (коллекция инициализирована, size = 1). НЕ трогая коллекцию, со стороны товара сохраните новый товар с `category = A`. Покажите, что уже загруженная коллекция A «не узнала» о новом товаре (size всё ещё 1, а в БД уже 2), и что `em.refresh` лечит это.
+- Что нужно сделать: Добавьте в `ProductLifecycleService` метод `int refreshCategoryProductCount(Long categoryId)` — в своей транзакции загрузить managed-категорию, принудительно перечитать её коллекцию из БД (`em.refresh(category)`) и вернуть свежее число товаров. Заранее созданный тест (TASK06Test): категория с 1 товаром загружена в PC, затем «в обход» (native-INSERT) в БД появился второй товар; managed-коллекция по-прежнему «видит» 1 — ваш метод через refresh приводит её в соответствие с БД и возвращает 2.
 - Стартовый код:
 ```java
-@DataJpaTest
-class OneToManyTask06Test {
-    @Test
-    void staleCollectionAfterSideInsert() {
-        // A с 1 товаром; em.clear();
-        // Category a = findById; a.getProducts().size(); // 1
-        // productRepository.save(new Product с category = a); em.flush();
-        // a.getProducts().size(); // 1 (stale!)
-        // SELECT COUNT(*) FROM products WHERE category_id = ? -> 2
-        // em.refresh(a); a.getProducts().size(); // 2
-    }
-}
+// com/example/jpalab/service/ProductLifecycleService.java
+
+// TODO: find(category) -> em.refresh(category) -> return getProducts().size()
+int refreshCategoryProductCount(Long categoryId);
 ```
 - Тест для проверки:
 ```bash
 mvn -Dtest=com.example.jpalab.tasks.t06.TASK06Test#staleCollectionAfterSideInsert
 ```
-- Критерий приёмки: Тест: после «боковой» вставки уже загруженная коллекция по-прежнему содержит 1 элемент (stale-вид из первого уровня кэша), а в БД товаров у A уже 2 (native COUNT); после `em.refresh(a)` коллекция содержит 2; в комментарии зафиксирован вывод: данные коллекции — это снапшот момента инициализации, внешние изменения не «пробираются» в неё до refresh/новой транзакции.
-- Подсказка (не решение): LAZY-коллекция загружается ОДИН раз и кэшируется в persistence context — «из-за спины» она не обновляется.
+- Критерий приёмки: Тест: данные — категория с 1 товаром; до refresh `managed.getProducts().size() == 1`, а в БД уже 2 (native-INSERT мимо PC); ваш метод возвращает 2; после него `managed.getProducts().size() == 2` — коллекция перечитана из БД.
+- Подсказка (не решение): managed-коллекция — это кэш в persistence context: изменения, сделанные мимо JPA, не видны до `refresh` (или до очистки PC).
