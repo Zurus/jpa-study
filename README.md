@@ -7,7 +7,7 @@
 
 - Сущности: `Product` (с `@Version`, Auditing, Bean Validation), `Category`, `Order`.
 - Репозитории, сервисы, DTO.
-- 18 тем и 180 заданий — каждое задание проверяется заранее созданным unit-тестом.
+- 19 тем и 190 заданий — каждое задание проверяется заранее созданным unit-тестом.
 - Документация: `PROJECT_SPEC.md` (спецификация), `PROGRESS.md` (ход работы).
 
 ## Темы
@@ -32,6 +32,7 @@
 | 16. @ManyToMany | 10 | 10 | 1–10 |
 | 17. Entity Inheritance | 10 | 10 | 1–10 |
 | 18. Embedded-типы и конвертеры | 10 | 10 | 1–10 |
+| 19. `@Transactional`: propagation и rollback | 10 | 10 | 1–10 |
 
 ## Как проходить задания
 
@@ -50,9 +51,10 @@
 
 - Полный маппинг коллекций
 - Querydsl
-- Транзакции в JPA
+- Продвинутые транзакции: уровни изоляции, long-running
 - Пессимистичная блокировка
 - Second-level cache
+- Query cache
 - Hibernate Event Listeners
 - Soft delete
 - Производительность

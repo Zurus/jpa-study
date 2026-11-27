@@ -1,7 +1,7 @@
 # PROGRESS — jpa-lab
 
-> Рабочее состояние проекта. Последнее обновление — после создания темы 18
-> (18-embedded-converters) по явному запросу.
+> Рабочее состояние проекта. Последнее обновление — после создания темы 19
+> (19-transactions) по явному запросу.
 
 ## Текущий статус
 
@@ -15,12 +15,12 @@
   тест вызывает его отражённо через `TaskTestSupport`.
 - `answers/`: не создаётся и не заполняется.
 
-## Состояние (после аудита и создания тем 13–18)
+## Состояние (после аудита и создания тем 13–19)
 
-- Текущий охват: 18 тем (01–18), по 10 заданий = 180 заданий и 180
-  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t18`.
+- Текущий охват: 19 тем (01–19), по 10 заданий = 190 заданий и 190
+  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t19`.
 - Тестовые классы: `src/test/java/com/example/jpalab/tasks/<тема>/TASK01Test.java`…`TASK10Test.java`;
-  пакеты Java `com.example.jpalab.tasks.t01`…`t18`.
+  пакеты Java `com.example.jpalab.tasks.t01`…`t19`.
 - Стартовый код: сущности `Product` / `Category` / `Tag` (у `Product` —
   `tags: Set<String>` и `attributes: Map<String,String>` через
   `@ElementCollection`, тема 15, и `productTags: Set<Tag>` — владелец
@@ -42,12 +42,12 @@
   `ProductTagService`, `ProductHierarchyService`, `OfferService`).
 - Стартовые методы в репозиториях, раскрывающие решения, удалены
   (в т.ч. «примерные» методы и 14 legacy-тестов, их использующих).
-- Все 180 тестов отрабатывают модель «красный до / зелёный после»:
-  в базовом состоянии все 180 красные («Задание не реализовано»).
+- Все 190 тестов отрабатывают модель «красный до / зелёный после»:
+  в базовом состоянии все 190 красные («Задание не реализовано»).
 - Все `tasks/*/README.md` и `TASK-XX.md` в одном формате: стартовый код,
   точная команда `mvn -Dtest=<класс>#<метод>`, критерий приёмки,
   подсказка без решения.
-- `verify-links.sh` проверяет все 180 ссылок на тесты: ошибок 0.
+- `verify-links.sh` проверяет все 190 ссылок на тесты: ошибок 0.
 
 ## Темы (текущий охват)
 
@@ -93,7 +93,7 @@ transient/detached, @Version.
 ### 12. Продвинутые темы (10)
 `ProductRepository` + `ProductLifecycleService`: @Lob, @Transient,
 расширения/конвертеры, @DynamicUpdate/@DynamicInsert,
-@Where/@SQLRestriction, @SQLDelete (без мягкого удаления — тема 26).
+@Where/@SQLRestriction, @SQLDelete (без мягкого удаления — тема 27).
 
 ### 13. Specification (10)
 Студентский артефакт: `com.example.jpalab.repository.ProductSpecifications`
@@ -221,25 +221,77 @@ auto-apply-конвертером (auto-apply не «протекает» в а�
 поля); H2 хранит ORDINAL как TINYINT (native-SELECT отдаёт Byte,
 а не Integer).
 
+### 19. `@Transactional`: propagation и rollback (10)
+Студенческий артефакт: методы
+`com.example.jpalab.service.ProductService` (стартовый код —
+`@Service` + `ProductRepository`, методов темы нет) + созданные
+студентом исключения `com.example.jpalab.exception.PriceSyncException`
+(`extends RuntimeException`, задание 02) и
+`com.example.jpalab.exception.OverstockLimitException` (`extends
+Exception`, checked, задание 06):
+`transferStock(Long, Long, int)` (атомарность: получатель пишется и
+flush-ится первым, проверка «не уйти в минус» — в памяти ДО flush
+источника; `@PositiveOrZero` иначе перехватит отрицательный остаток на
+flush); `bulkUpdatePrices(int, BigDecimal)` (`noRollbackFor =
+PriceSyncException.class` — цены закоммичены несмотря на
+RuntimeException); `createProductWithCategory(String, String)`
+(REQUIRES_NEW — commit переживает rollback внешней); `moveProductToCategory(Long, String)`
+(MANDATORY — без транзакции `IllegalTransactionStateException`, тело
+не выполняется); `updateProductPrice(Long, BigDecimal)` (REQUIRED —
+изменение умирает вместе с транзакцией вызывающего, контраст к 03);
+`adjustStock(Long, int)` (`rollbackFor = OverstockLimitException.class`
+— checked-исключение откатывает, по умолчанию бы закоммитилось);
+`transferStockCommittedFirst(Long, Long, int)` (без `@Transactional`:
+перенос в `TransactionTemplate`, commit до последующего
+`IllegalStateException`); `previewStockAfterPromo(Long, int)`
+(`readOnly = true` — подсказка, а не guard: метод просто не
+модифицирует managed-сущность); `transferStockSafely(Long, Long, int)`
+(внешний `@Transactional` + внутренняя REQUIRES_NEW-граница —
+declarative self-вызов или программный `TransactionTemplate` с явной
+`DefaultTransactionDefinition`; сбой внутренней откатывает только её,
+внешняя закоммитит `Order`-лог и вернёт false); `processStockTransfers(Long, Long, List<Integer>, int)`
++ `transferStockAtomically(Long, Long, int, int)` (каждая операция —
+собственная REQUIRES_NEW-транзакция через self-прокси; сбой одной
+откатывает только её). Все тесты — `@SpringBootTest` и НЕ
+транзакционные: реальные транзакции только через
+`TransactionTemplate` (автоконфигурированный `PlatformTransactionManager`),
+состояние БД — native-SELECT. Ловушки проверены эмпирически: без
+`@Transactional` (T01), без `noRollbackFor` (T02), REQUIRED вместо
+REQUIRES_NEW (T03), REQUIRED вместо MANDATORY (T04), REQUIRES_NEW
+вместо REQUIRED (T05), без `rollbackFor` (T06), `@Transactional`
+вместо template (T07), writable-реальная запись (T08), без внутренней
+границы (T09), REQUIRED вместо REQUIRES_NEW внутри (T10) — все дают
+красный тест. Важные факты стека: MANDATORY без транзакции бросает
+`IllegalTransactionStateException` (а не `NoTransactionException`, его
+в Spring 6 нет); `JpaTransactionManager` не поддерживает NESTED/
+savepoints (JpaDialect), Hibernate 6 не имеет `Session.savepoint`,
+`em.unwrap(Connection.class)` недоступен — «откат только внутренней
+части» строится внутренней REQUIRES_NEW-транзакцией; dirty-UPDATE
+managed-сущности в readOnly-транзакции молча не записывается
+(без исключения), `persist` в ней работает.
+
 ## Проверено командой
 
 ```bash
 cd D:/study/SQLTrain/jpa-lab
-bash verify-links.sh     # 180 ссылок, ошибок 0
-mvn test                 # Tests run: 180, Failures: 177, Errors: 3, Skipped: 0
+bash verify-links.sh     # 190 ссылок, ошибок 0
+mvn test                 # Tests run: 190, Failures: 187, Errors: 3, Skipped: 0
 ```
+
+(3 ожидаемых error — базовая линия тем 17/18: нет таблицы `products_base`
+(задания 17.03/17.04) и нет колонки `BASE_AMOUNT` (задание 18.02).)
 
 ## План (только по явным запросам)
 
-Темы 19–27, по 10 заданий каждая, те же правила (10 тестов заранее,
+Темы 20–28, по 10 заданий каждая, те же правила (10 тестов заранее,
 красный до / зелёный после, формат TASK-XX.md):
 
-19. Полный маппинг коллекций
-20. Querydsl
-21. Транзакции
-22. Пессимистические блокировки
-23. Second-level cache
-24. Query cache
-25. Hibernate Event Listeners
-26. Soft delete
-27. Производительность
+20. Полный маппинг коллекций
+21. Querydsl
+22. Продвинутые транзакции: уровни изоляции, long-running
+23. Пессимистические блокировки
+24. Second-level cache
+25. Query cache
+26. Hibernate Event Listeners
+27. Soft delete
+28. Производительность
