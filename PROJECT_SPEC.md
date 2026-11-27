@@ -19,6 +19,9 @@
 - `Category`: id, name, products (`@OneToMany(mappedBy = "category", cascade = ALL, orphanRemoval = true)`)
 - `Order`: id, orderDate, product (`@ManyToOne`)
 - `Tag` (тема 16, таблица `tags`): id, name, products (`Set<Product>`, `@ManyToMany(mappedBy = "productTags")`)
+- `BaseEntity` (тема 17, `@MappedSuperclass` в стартовом коде): id (IDENTITY), createdAt — общий корень иерархии «товары» (в заданиях 03–06 студент переводит его в `@Entity`-корень SINGLE_TABLE, таблица `products_base`, дискриминатор `ptype`)
+- `DigitalProduct` (тема 17, наследует `BaseEntity`): downloadUrl
+- `PhysicalProduct` (тема 17, наследует `BaseEntity`): weight (`Double`)
 - DTO: `ProductSummary` (open interface в `ProductRepository`), `ProductNamePrice` (record), `ProductDto` (класс с конструктором)
 
 ## Принцип обучения
@@ -39,8 +42,8 @@
 - `@Modifying`: проверка изменения данных, состояния PC (clearAutomatically/flushAutomatically) и числа затронутых строк.
 - `@Version`: `OptimisticLockingFailureException` при конкурентном обновлении через `productRepository.save` (граница Spring Data); JPA `OptimisticLockException` — через `em.merge`.
 - **Тесты не раскрывают решение**: в тесте и в `TASK-XX.md` нет текста готового запроса/реализации; «Стартовый код» — `// TODO` + требуемая сигнатура; «Подсказка» — одна строка без готового выражения.
-- Структура тестов: каталоги `src/test/java/com/example/jpalab/tasks/<NN>-<тема>/`, пакеты `com.example.jpalab.tasks.t01`…`t16`. Каталог соответствует теме, пакет — теме; сверка задания с тестом идёт по каталогу темы (имя класса `TASK01Test` совпадает во всех темах).
-- Общий помощник: `TaskTestSupport.invoke(repository|service, methodName, Class<?>[] parameterTypes, Object... args)` — рефлексивный вызов метода студента; нет метода → `AssertionError` «Задание не реализовано: …». `TaskTestSupport.newInstance(className)` — рефлексивное создание класса-артефакта студента по FQCN (тема 13: `ProductSpecifications`); нет класса → `AssertionError` «Задание не реализовано».
+- Структура тестов: каталоги `src/test/java/com/example/jpalab/tasks/<NN>-<тема>/`, пакеты `com.example.jpalab.tasks.t01`…`t17`. Каталог соответствует теме, пакет — теме; сверка задания с тестом идёт по каталогу темы (имя класса `TASK01Test` совпадает во всех темах).
+- Общий помощник: `TaskTestSupport.invoke(repository|service, methodName, Class<?>[] parameterTypes, Object... args)` — рефлексивный вызов метода студента; нет метода → `AssertionError` «Задание не реализовано: …». `TaskTestSupport.newInstance(className)` — рефлексивное создание класса-артефакта студента по FQCN (тема 13: `ProductSpecifications`, тема 17: классы иерархий `vehicle`/`document`); нет класса → `AssertionError` «Задание не реализовано».
 - `answers/` не создаётся; решений в `tasks/`, `src/`, тестах нет.
 
 ## Формат TASK-XX.md
@@ -71,7 +74,7 @@ mvn -Dtest=com.example.jpalab.tasks.tNN.TASKXXTest#<имя метода тест
 - Тест самодостаточен: создаёт данные, вызывает целевой метод студента, проверяет результат и (где требуется) SQL-лог.
 - `answers/` не создаётся, markdown-решения не пишутся.
 
-## Темы: текущий скоуп (01–16, 10 заданий каждая)
+## Темы: текущий скоуп (01–17, 10 заданий каждая)
 
 ### 01. Derived queries (вывод запроса из имени метода)
 Предикаты (GreaterThan, Between, Containing, IgnoreCase, IsNull/IsNotNull), коннекторы And/Or, Top/First/Last, OrderBy, Sort, свойство-путь через ассоциацию (`CategoryName`), Pageable, NULL, N+1 у derived + LAZY, порядок параметров. Только имена методов — без `@Query`.
@@ -121,10 +124,12 @@ Bean Validation на flush (не на setter), `@Size` на сущностях, 
 ### 16. @ManyToMany
 Связь «многие-ко-многим» `Product` ↔ `Tag` через промежуточную таблицу `product_tag_link` (обе стороны и таблица — стартовый код; имя поля-владельца `productTags`, потому что `tags` в `Product` уже занято строковой коллекцией темы 15). Владелец ассоциации и `mappedBy`; добавление/удаление связей через коллекцию владельца; двунаправленная согласованность обеих сторон в рамках одного persistence context (Hibernate не синхронизирует стороны автоматически); удаление «хвостовой» сущности Tag при cascade = NONE (связи сначала обрываются со стороны владельца; `tag.getProducts()` может быть stale — поиск через JPQL-join); поиск по имени тега (join по ассоциации); N+1 именно на коллекции `@ManyToMany` и `JOIN FETCH` (left join fetch — продукты без тегов в результате обязаны быть); «общие теги» (подзапрос/пересечение, distinct, исключение самого продукта). Артефакт — методы сервиса `com.example.jpalab.service.ProductTagService` (скелет с `EntityManager` в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`, состояние join-таблицы — native-SELECT).
 
-## Планируемые темы (17–27) — ВНЕ текущего скоупа
-Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 160 заданий тем 01–16). Перечень плановый, порядок может меняться:
+### 17. Наследование сущностей (Entity Inheritance)
+Полиморфные иерархии: стартовая иерархия `BaseEntity` (`@MappedSuperclass`: `id`, `createdAt`) → `DigitalProduct` (`downloadUrl`) / `PhysicalProduct` (`weight`) плюс две создаваемые студентом иерархии — `vehicle` (`Vehicle`/`Car`/`Bus`, JOINED) и `document` (`Document`/`PdfDocument`/`OdtDocument`, TABLE_PER_CLASS). Поля `@MappedSuperclass` в подклассах; перевод иерархии на SINGLE_TABLE (`@Entity`-корень, `@Inheritance`, `@DiscriminatorColumn(name = "ptype")`, общая таблица `products_base`; `@Inheritance` на `@MappedSuperclass` в Hibernate 6 игнорируется); явные `@DiscriminatorValue`; полиморфный запрос по корню (Hibernate сам учитывает дискриминатор и материализует подкласс) и запрос по конкретному подклассу; NULL-ловушки полиморфной таблицы (колонки «чужого» типа NULL); JOINED (корневая таблица + таблицы подклассов, persist = 2 prepared statement, чтение одним join-запросом); TABLE_PER_CLASS (независимые таблицы со всеми колонками, `SEQUENCE` вместо несовместимого `IDENTITY`, полиморфный запрос = 1 UNION-запрос); сравнение стоимости persist трёх стратегий через Hibernate Statistics. Артефакт — методы сервиса `com.example.jpalab.service.ProductHierarchyService` (скелет в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`), аннотации на стартовых сущностях и классы иерархий `com.example.jpalab.entity.vehicle.*` / `com.example.jpalab.entity.document.*` студента (тесты находят их через `TaskTestSupport.newInstance` + рефлексию). Сущность `Product` не меняется.
 
-- 17. Наследование сущностей (SINGLE_TABLE / JOINED / TABLE_PER_CLASS, @DiscriminatorColumn)
+## Планируемые темы (18–27) — ВНЕ текущего скоупа
+Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 170 заданий тем 01–17). Перечень плановый, порядок может меняться:
+
 - 18. Продвинутый маппинг типов (@Embedded, @Convert/@Converter, EnumType, составные ключи)
 - 19. Полный маппинг коллекций (остаток после темы 15: `@OrderColumn`, колонки индекса List, `@MapKeyType`/`@MapKeyEnumerated`, ordered-коллекции)
 - 20. Querydsl (типобезопасный DSL)
@@ -146,9 +151,10 @@ Bean Validation на flush (не на setter), `@Size` на сущностях, 
 - Тема 14 (Criteria API) **не выходит за границы**: только API напрямую — без Specification (тема 13) и Querydsl (тема 20); повторение логических запросов тем 01–04 через Criteria разрешено (акцент на API, а не на запросе); чистая пагинация — тема 08; GROUP BY/HAVING — разрешённое исключение темы 04 в программной форме.
 - Тема 15 (@ElementCollection) **не выходит за границы**: только коллекции простых значений (`Set<String>`, `Map<String, String>`) — без `@OneToMany`/`@ManyToMany` (это темы 05–06), без отдельных сущностей для элементов коллекций, без `@OrderColumn`/`@MapKeyType` (плановая тема 19), без повторения тем 05–07 и «Продвинутый маппинг типов» (тема 18); поиск по элементам — JPQL/HQL без Criteria API (тема 14) и Specification (тема 13).
 - Тема 16 (@ManyToMany) **не выходит за границы**: только ассоциация `@ManyToMany` между `Product` и `Tag` — без `@ElementCollection` (тема 15), без дублирования `@ManyToOne` (тема 05) и `@OneToMany` (тема 06); общий N+1 — тема 07, здесь N+1 только в контексте коллекции `@ManyToMany`; без `@OneToOne`, наследования, `@OrderColumn`/индексации коллекций.
+- Тема 17 (наследование) **не выходит за границы**: только иерархия `BaseEntity → DigitalProduct / PhysicalProduct` и создаваемые студентом иерархии `vehicle` (JOINED) / `document` (TABLE_PER_CLASS) — сущность `Product` (темы 01–16) не меняется, без `@ElementCollection` (тема 15) и `@ManyToMany` (тема 16), без дублирования жизненного цикла (тема 11); без `EXCLUSIVE`/`READ`/`NONE`-дискриминаторов, `@SecondaryTable`, `@EmbeddedId`.
 - Тема 09 (bulk) и тема 12 не пересекаются: 09 — механика bulk-SQL и PC, 12 — семантика `@Version`/валидации; единственная стыковая точка (bulk не поднимает version) закреплена в задании 12/09.
 
 ## Важное (скоуп)
 - Проект покрывает практическую Spring Data JPA / Hibernate-часть курса, а не весь курс. За кадром: SQL-основы, JDBC, проектирование БД, кластеры и облачные БД.
-- Текущий релиз: ровно 16 тем × 10 заданий = 160 заданий, 160 заранее созданных тестов. Тем 17–27 в репозитории нет и их не создавать без отдельного запроса.
+- Текущий релиз: ровно 17 тем × 10 заданий = 170 заданий, 170 заранее созданных тестов. Тем 18–27 в репозитории нет и их не создавать без отдельного запроса.
 - `answers/` не создаётся; каждое задание проверяется unit-тестом.

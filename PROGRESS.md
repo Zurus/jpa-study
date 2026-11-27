@@ -1,7 +1,7 @@
 # PROGRESS — jpa-lab
 
-> Рабочее состояние проекта. Последнее обновление — после создания темы 15
-> (16-many-to-many) по явному запросу.
+> Рабочее состояние проекта. Последнее обновление — после создания темы 17
+> (17-inheritance) по явному запросу.
 
 ## Текущий статус
 
@@ -15,31 +15,33 @@
   тест вызывает его отражённо через `TaskTestSupport`.
 - `answers/`: не создаётся и не заполняется.
 
-## Состояние (после аудита и создания тем 13–16)
+## Состояние (после аудита и создания тем 13–17)
 
-- Текущий охват: 16 тем (01–16), по 10 заданий = 160 заданий и 160
-  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t16`.
+- Текущий охват: 17 тем (01–17), по 10 заданий = 170 заданий и 170
+  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t17`.
 - Тестовые классы: `src/test/java/com/example/jpalab/tasks/<тема>/TASK01Test.java`…`TASK10Test.java`;
-  пакеты Java `com.example.jpalab.tasks.t01`…`t16`.
+  пакеты Java `com.example.jpalab.tasks.t01`…`t17`.
 - Стартовый код: сущности `Product` / `Category` / `Tag` (у `Product` —
   `tags: Set<String>` и `attributes: Map<String,String>` через
   `@ElementCollection`, тема 15, и `productTags: Set<Tag>` — владелец
   `@ManyToMany`, таблица `product_tag_link`, тема 16; у `Tag` —
   `products: Set<Product>` с `mappedBy = "productTags"`),
+  иерархия темы 17: `BaseEntity` (`@MappedSuperclass`: `id`, `createdAt`),
+  `DigitalProduct` (`downloadUrl`), `PhysicalProduct` (`weight`),
   `ProductRepository`
   (JpaRepository + JpaSpecificationExecutor + findByCategory +
   ProductSummary), пустые `CategoryRepository` и `TagRepository`, сервисы-заготовки
   (`ProductService`, `ProductLifecycleService`, `ProductVersioningService`,
   `ProductCriteriaService`, `ProductElementCollectionService`,
-  `ProductTagService`).
+  `ProductTagService`, `ProductHierarchyService`).
 - Стартовые методы в репозиториях, раскрывающие решения, удалены
   (в т.ч. «примерные» методы и 14 legacy-тестов, их использующих).
-- Все 160 тестов отрабатывают модель «красный до / зелёный после»:
-  в базовом состоянии все 160 красные («Задание не реализовано»).
+- Все 170 тестов отрабатывают модель «красный до / зелёный после»:
+  в базовом состоянии все 170 красные («Задание не реализовано»).
 - Все `tasks/*/README.md` и `TASK-XX.md` в одном формате: стартовый код,
   точная команда `mvn -Dtest=<класс>#<метод>`, критерий приёмки,
   подсказка без решения.
-- `verify-links.sh` проверяет все 160 ссылок на тесты: ошибок 0.
+- `verify-links.sh` проверяет все 170 ссылок на тесты: ошибок 0.
 
 ## Темы (текущий охват)
 
@@ -153,20 +155,49 @@ stale — надёжнее JPQL-join); `findProductIdsByTagName(String)`;
 → T07 красный (1+N запросов); включение самого продукта → T08 красный;
 add-only sync → T10 красный.
 
+### 17. Наследование сущностей (10)
+Студентский артефакт: методы
+`com.example.jpalab.service.ProductHierarchyService` (стартовый код —
+`@Service` + `@PersistenceContext EntityManager`, методов нет);
+стартовый код сущностей: `BaseEntity` (`@MappedSuperclass`: `id`,
+`createdAt`), `DigitalProduct` (`downloadUrl`), `PhysicalProduct`
+(`weight`); иерархии `com.example.jpalab.entity.vehicle.*` (JOINED)
+и `com.example.jpalab.entity.document.*` (TABLE_PER_CLASS) создаёт
+студент (тесты находят их через `TaskTestSupport.newInstance` + рефлексию):
+`saveDigitalProduct(String, LocalDateTime)`;
+`savePhysicalProduct(Double, LocalDateTime)`; перевод основной
+иерархии на SINGLE_TABLE (аннотации: `@Entity`-корень, `@Inheritance`,
+`@DiscriminatorColumn(name = "ptype")`, таблица `products_base`);
+`@DiscriminatorValue("DIGITAL")`/`"PHYSICAL"`;
+`findAllProducts()` (полиморфный запрос по корню, порядок по id);
+`findPhysicalProductIdsByWeightAtLeast(Double)`; иерархия
+Vehicle/Car/Bus (persist = 2 prepared statement, дискриминатор `vtype`);
+иерархия Document/PdfDocument/OdtDocument (SEQUENCE вместо IDENTITY,
+полиморфный запрос = 1 UNION);
+`findDigitalProductIdsWithoutDownloadUrl()` (NULL-ловушка
+полиморфной таблицы); `persistStatementCounts()`
+(singleTable=1, joined=2, tablePerClass=2). Ловушки проверены
+эмпирически: JOINED вместо SINGLE_TABLE → T03 красный; без
+`@DiscriminatorValue` → T04 красный (в колонке имя класса, а не
+значение); SINGLE_TABLE у Vehicle → T07 красный (1 prepared statement);
+нативный SQL без дискриминатора → T09 красный. Важные факты
+Hibernate 6: `@Inheritance` на `@MappedSuperclass` игнорируется
+(корень обязан быть `@Entity`); TABLE_PER_CLASS несовместим с
+IDENTITY (требуется SEQUENCE).
+
 ## Проверено командой
 
 ```bash
 cd D:/study/SQLTrain/jpa-lab
-bash verify-links.sh     # 160 ссылок, ошибок 0
-mvn test                 # Tests run: 160, Failures: 160, Errors: 0, Skipped: 0
+bash verify-links.sh     # 170 ссылок, ошибок 0
+mvn test                 # Tests run: 170, Failures: 168, Errors: 2, Skipped: 0
 ```
 
 ## План (только по явным запросам)
 
-Темы 17–27, по 10 заданий каждая, те же правила (10 тестов заранее,
+Темы 18–27, по 10 заданий каждая, те же правила (10 тестов заранее,
 красный до / зелёный после, формат TASK-XX.md):
 
-17. Наследование сущностей
 18. Продвинутый маппинг типов
 19. Полный маппинг коллекций
 20. Querydsl

@@ -7,7 +7,7 @@
 
 - Сущности: `Product` (с `@Version`, Auditing, Bean Validation), `Category`, `Order`.
 - Репозитории, сервисы, DTO.
-- 16 тем и 160 заданий — каждое задание проверяется заранее созданным unit-тестом.
+- 17 тем и 170 заданий — каждое задание проверяется заранее созданным unit-тестом.
 - Документация: `PROJECT_SPEC.md` (спецификация), `PROGRESS.md` (ход работы).
 
 ## Темы
@@ -26,6 +26,11 @@
 | 10. Проекции | 10 | 10 | 1–10 |
 | 11. Жизненный цикл Entity | 10 | 10 | 1–10 |
 | 12. Нюансы | 10 | 10 | 1–10 |
+| 13. Specification | 10 | 10 | 1–10 |
+| 14. Criteria API | 10 | 10 | 1–10 |
+| 15. @ElementCollection | 10 | 10 | 1–10 |
+| 16. @ManyToMany | 10 | 10 | 1–10 |
+| 17. Entity Inheritance | 10 | 10 | 1–10 |
 
 ## Как проходить задания
 
@@ -42,9 +47,12 @@
 
 ## Следующие шаги
 
-- GROUP BY / HAVING через Criteria API
-- Specification
-- Second-level cache
 - Продвинутый маппинг типов
-- Наследование сущностей
 - Полный маппинг коллекций
+- Querydsl
+- Транзакции в JPA
+- Пессимистичная блокировка
+- Second-level cache
+- Hibernate Event Listeners
+- Soft delete
+- Производительность
