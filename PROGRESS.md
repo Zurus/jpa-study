@@ -1,7 +1,7 @@
 # PROGRESS — jpa-lab
 
-> Рабочее состояние проекта. Последнее обновление — после создания темы 17
-> (17-inheritance) по явному запросу.
+> Рабочее состояние проекта. Последнее обновление — после создания темы 18
+> (18-embedded-converters) по явному запросу.
 
 ## Текущий статус
 
@@ -15,12 +15,12 @@
   тест вызывает его отражённо через `TaskTestSupport`.
 - `answers/`: не создаётся и не заполняется.
 
-## Состояние (после аудита и создания тем 13–17)
+## Состояние (после аудита и создания тем 13–18)
 
-- Текущий охват: 17 тем (01–17), по 10 заданий = 170 заданий и 170
-  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t17`.
+- Текущий охват: 18 тем (01–18), по 10 заданий = 180 заданий и 180
+  заранее созданных unit-тестов; пакеты тестов `com.example.jpalab.tasks.t01`…`t18`.
 - Тестовые классы: `src/test/java/com/example/jpalab/tasks/<тема>/TASK01Test.java`…`TASK10Test.java`;
-  пакеты Java `com.example.jpalab.tasks.t01`…`t17`.
+  пакеты Java `com.example.jpalab.tasks.t01`…`t18`.
 - Стартовый код: сущности `Product` / `Category` / `Tag` (у `Product` —
   `tags: Set<String>` и `attributes: Map<String,String>` через
   `@ElementCollection`, тема 15, и `productTags: Set<Tag>` — владелец
@@ -28,20 +28,26 @@
   `products: Set<Product>` с `mappedBy = "productTags"`),
   иерархия темы 17: `BaseEntity` (`@MappedSuperclass`: `id`, `createdAt`),
   `DigitalProduct` (`downloadUrl`), `PhysicalProduct` (`weight`),
+  тема 18: `Money` (`@Embeddable`: `amount`, `currency`),
+  `ProductStatus` (ACTIVE/INACTIVE/DISCONTINUED), `DiscountType`
+  (PERCENT/FIXED), `Offer` (таблица `offer`: `basePrice` —
+  `@Embedded Money`, `status` — `@Enumerated(STRING)`, `discountType`
+  — без аннотаций; у `Product` — `status: ProductStatus`),
   `ProductRepository`
   (JpaRepository + JpaSpecificationExecutor + findByCategory +
-  ProductSummary), пустые `CategoryRepository` и `TagRepository`, сервисы-заготовки
+  ProductSummary), пустые `CategoryRepository`, `TagRepository`,
+  `OfferRepository`, сервисы-заготовки
   (`ProductService`, `ProductLifecycleService`, `ProductVersioningService`,
   `ProductCriteriaService`, `ProductElementCollectionService`,
-  `ProductTagService`, `ProductHierarchyService`).
+  `ProductTagService`, `ProductHierarchyService`, `OfferService`).
 - Стартовые методы в репозиториях, раскрывающие решения, удалены
   (в т.ч. «примерные» методы и 14 legacy-тестов, их использующих).
-- Все 170 тестов отрабатывают модель «красный до / зелёный после»:
-  в базовом состоянии все 170 красные («Задание не реализовано»).
+- Все 180 тестов отрабатывают модель «красный до / зелёный после»:
+  в базовом состоянии все 180 красные («Задание не реализовано»).
 - Все `tasks/*/README.md` и `TASK-XX.md` в одном формате: стартовый код,
   точная команда `mvn -Dtest=<класс>#<метод>`, критерий приёмки,
   подсказка без решения.
-- `verify-links.sh` проверяет все 170 ссылок на тесты: ошибок 0.
+- `verify-links.sh` проверяет все 180 ссылок на тесты: ошибок 0.
 
 ## Темы (текущий охват)
 
@@ -185,20 +191,49 @@ Hibernate 6: `@Inheritance` на `@MappedSuperclass` игнорируется
 (корень обязан быть `@Entity`); TABLE_PER_CLASS несовместим с
 IDENTITY (требуется SEQUENCE).
 
+### 18. Embedded-типы и конвертеры (10)
+Студенческий артефакт: методы
+`com.example.jpalab.service.OfferService` (стартовый код —
+`@Service` + `@PersistenceContext EntityManager`, методов нет):
+`saveOffer(String, Money, ProductStatus)`;
+`sumBaseAmountByCurrency(String)` (JPQL-сумма по пути
+`basePrice.amount` с фильтром по `basePrice.currency`, пустое
+множество → null); аннотации на `Offer`: `@AttributeOverrides`
+у `basePrice` (`base_amount`/`base_currency`, дефолтные
+`amount`/`currency` исчезают), второй `@Embedded Money`
+`discountedPrice` (`discount_amount`/`discount_currency`),
+`lastKnownStatus` — `@Enumerated(EnumType.ORDINAL)` (0/1/2 в
+колонке), `total` — `@Convert` `MoneyTextConverter` (одна
+текстовая колонка "сумма валюта"), `priceRange` — `@Embedded`
+`com.example.jpalab.entity.PriceRange`; созданные студентом
+`ProductStatusConverter` (нижний регистр, явный `@Convert` только
+на `Offer.status`; контроль: `Product.status` остаётся
+`DISCONTINUED`), `DiscountTypeConverter` (PERCENT→"P",
+FIXED→"F", `@Converter(autoApply = true)` — поле без аннотаций),
+`MoneyTextConverter` и вложенный `@Embeddable PriceRange`
+(min/max Money, overrides внутри класса). Задания 02–09
+накопительные. Ловушки проверены эмпирически: второй @Embedded
+без overrides → T03 красный (колонка не найдена); STRING вместо
+ORDINAL → T04 красный (в колонке имя, а не номер); @Embedded
+вместо @Convert для total → T07 красный (колонки TOTAL нет).
+Важные факты: явный `@Enumerated` на поле имеет приоритет над
+auto-apply-конвертером (auto-apply не «протекает» в аннотированные
+поля); H2 хранит ORDINAL как TINYINT (native-SELECT отдаёт Byte,
+а не Integer).
+
 ## Проверено командой
 
 ```bash
 cd D:/study/SQLTrain/jpa-lab
-bash verify-links.sh     # 170 ссылок, ошибок 0
-mvn test                 # Tests run: 170, Failures: 168, Errors: 2, Skipped: 0
+bash verify-links.sh     # 180 ссылок, ошибок 0
+mvn test                 # Tests run: 180, Failures: 177, Errors: 3, Skipped: 0
 ```
 
 ## План (только по явным запросам)
 
-Темы 18–27, по 10 заданий каждая, те же правила (10 тестов заранее,
+Темы 19–27, по 10 заданий каждая, те же правила (10 тестов заранее,
 красный до / зелёный после, формат TASK-XX.md):
 
-18. Продвинутый маппинг типов
 19. Полный маппинг коллекций
 20. Querydsl
 21. Транзакции

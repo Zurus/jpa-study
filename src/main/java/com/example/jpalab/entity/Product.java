@@ -5,6 +5,8 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -103,4 +105,10 @@ public class Product {
             inverseJoinColumns = @JoinColumn(name = "tag_id"))
     @Builder.Default
     private Set<Tag> productTags = new HashSet<>();
+
+    // Тема 18 (embedded-типы и конвертеры): статус товара. Стартовое состояние —
+    // явный EnumType.STRING; задания темы 18 показывают альтернативные маппинги.
+
+    @Enumerated(EnumType.STRING)
+    private ProductStatus status;
 }

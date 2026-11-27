@@ -19,6 +19,9 @@
 - `Category`: id, name, products (`@OneToMany(mappedBy = "category", cascade = ALL, orphanRemoval = true)`)
 - `Order`: id, orderDate, product (`@ManyToOne`)
 - `Tag` (тема 16, таблица `tags`): id, name, products (`Set<Product>`, `@ManyToMany(mappedBy = "productTags")`)
+- `Money` (тема 18, `@Embeddable`): amount (`BigDecimal`), currency (`String`) — колонки по умолчанию `amount`/`currency`
+- `ProductStatus` (тема 18, enum): ACTIVE/INACTIVE/DISCONTINUED; `DiscountType` (тема 18, enum): PERCENT/FIXED
+- `Offer` (тема 18, таблица `offer`): id (IDENTITY), name, basePrice (`@Embedded Money` — в стартовом коде без переопределения колонок), status (`@Enumerated(EnumType.STRING)` ProductStatus), discountType (без аннотаций маппинга); у `Product` добавлено поле `status: ProductStatus` (`@Enumerated(EnumType.STRING)`)
 - `BaseEntity` (тема 17, `@MappedSuperclass` в стартовом коде): id (IDENTITY), createdAt — общий корень иерархии «товары» (в заданиях 03–06 студент переводит его в `@Entity`-корень SINGLE_TABLE, таблица `products_base`, дискриминатор `ptype`)
 - `DigitalProduct` (тема 17, наследует `BaseEntity`): downloadUrl
 - `PhysicalProduct` (тема 17, наследует `BaseEntity`): weight (`Double`)
@@ -42,7 +45,7 @@
 - `@Modifying`: проверка изменения данных, состояния PC (clearAutomatically/flushAutomatically) и числа затронутых строк.
 - `@Version`: `OptimisticLockingFailureException` при конкурентном обновлении через `productRepository.save` (граница Spring Data); JPA `OptimisticLockException` — через `em.merge`.
 - **Тесты не раскрывают решение**: в тесте и в `TASK-XX.md` нет текста готового запроса/реализации; «Стартовый код» — `// TODO` + требуемая сигнатура; «Подсказка» — одна строка без готового выражения.
-- Структура тестов: каталоги `src/test/java/com/example/jpalab/tasks/<NN>-<тема>/`, пакеты `com.example.jpalab.tasks.t01`…`t17`. Каталог соответствует теме, пакет — теме; сверка задания с тестом идёт по каталогу темы (имя класса `TASK01Test` совпадает во всех темах).
+- Структура тестов: каталоги `src/test/java/com/example/jpalab/tasks/<NN>-<тема>/`, пакеты `com.example.jpalab.tasks.t01`…`t18`. Каталог соответствует теме, пакет — теме; сверка задания с тестом идёт по каталогу темы (имя класса `TASK01Test` совпадает во всех темах).
 - Общий помощник: `TaskTestSupport.invoke(repository|service, methodName, Class<?>[] parameterTypes, Object... args)` — рефлексивный вызов метода студента; нет метода → `AssertionError` «Задание не реализовано: …». `TaskTestSupport.newInstance(className)` — рефлексивное создание класса-артефакта студента по FQCN (тема 13: `ProductSpecifications`, тема 17: классы иерархий `vehicle`/`document`); нет класса → `AssertionError` «Задание не реализовано».
 - `answers/` не создаётся; решений в `tasks/`, `src/`, тестах нет.
 
@@ -74,7 +77,7 @@ mvn -Dtest=com.example.jpalab.tasks.tNN.TASKXXTest#<имя метода тест
 - Тест самодостаточен: создаёт данные, вызывает целевой метод студента, проверяет результат и (где требуется) SQL-лог.
 - `answers/` не создаётся, markdown-решения не пишутся.
 
-## Темы: текущий скоуп (01–17, 10 заданий каждая)
+## Темы: текущий скоуп (01–18, 10 заданий каждая)
 
 ### 01. Derived queries (вывод запроса из имени метода)
 Предикаты (GreaterThan, Between, Containing, IgnoreCase, IsNull/IsNotNull), коннекторы And/Or, Top/First/Last, OrderBy, Sort, свойство-путь через ассоциацию (`CategoryName`), Pageable, NULL, N+1 у derived + LAZY, порядок параметров. Только имена методов — без `@Query`.
@@ -127,10 +130,12 @@ Bean Validation на flush (не на setter), `@Size` на сущностях, 
 ### 17. Наследование сущностей (Entity Inheritance)
 Полиморфные иерархии: стартовая иерархия `BaseEntity` (`@MappedSuperclass`: `id`, `createdAt`) → `DigitalProduct` (`downloadUrl`) / `PhysicalProduct` (`weight`) плюс две создаваемые студентом иерархии — `vehicle` (`Vehicle`/`Car`/`Bus`, JOINED) и `document` (`Document`/`PdfDocument`/`OdtDocument`, TABLE_PER_CLASS). Поля `@MappedSuperclass` в подклассах; перевод иерархии на SINGLE_TABLE (`@Entity`-корень, `@Inheritance`, `@DiscriminatorColumn(name = "ptype")`, общая таблица `products_base`; `@Inheritance` на `@MappedSuperclass` в Hibernate 6 игнорируется); явные `@DiscriminatorValue`; полиморфный запрос по корню (Hibernate сам учитывает дискриминатор и материализует подкласс) и запрос по конкретному подклассу; NULL-ловушки полиморфной таблицы (колонки «чужого» типа NULL); JOINED (корневая таблица + таблицы подклассов, persist = 2 prepared statement, чтение одним join-запросом); TABLE_PER_CLASS (независимые таблицы со всеми колонками, `SEQUENCE` вместо несовместимого `IDENTITY`, полиморфный запрос = 1 UNION-запрос); сравнение стоимости persist трёх стратегий через Hibernate Statistics. Артефакт — методы сервиса `com.example.jpalab.service.ProductHierarchyService` (скелет в стартовом коде; тесты через `@Import` + `TaskTestSupport.invoke`), аннотации на стартовых сущностях и классы иерархий `com.example.jpalab.entity.vehicle.*` / `com.example.jpalab.entity.document.*` студента (тесты находят их через `TaskTestSupport.newInstance` + рефлексию). Сущность `Product` не меняется.
 
-## Планируемые темы (18–27) — ВНЕ текущего скоупа
-Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 170 заданий тем 01–17). Перечень плановый, порядок может меняться:
+### 18. Embedded-типы и конвертеры
+Ценностные типы и кастомный маппинг: стартовый `@Embeddable Money` (`amount` BigDecimal, `currency` String), enum `ProductStatus` (ACTIVE/INACTIVE/DISCONTINUED — поле `Product.status`, `@Enumerated(EnumType.STRING)`) и `DiscountType` (PERCENT/FIXED), сущность `Offer` (таблица `offer`: `id`, `name`, `basePrice` — `@Embedded Money` без переопределения колонок, `status` — `@Enumerated(EnumType.STRING)`, `discountType` — без аннотаций), пустой `OfferRepository`, скелет `OfferService` (`@Service` + `EntityManager`, методов нет). Задания накопительные — аннотации и поля из предыдущих заданий остаются. Сохранение Offer с вложенным типом (`saveOffer`); `@AttributeOverrides` у `basePrice` (`base_amount`/`base_currency`, дефолтные `amount`/`currency` исчезают); второй `@Embedded Money` (`discountedPrice`) со своими колонками `discount_amount`/`discount_currency` (два вложенных типа одного класса без overrides пишут в общие колонки); `@Enumerated(EnumType.ORDINAL)` для нового поля `lastKnownStatus` (номера 0/1/2 в колонке); `ProductStatusConverter` (нижний регистр) студента, явный `@Convert` только на `Offer.status` (контроль: `Product.status` остаётся `DISCONTINUED`); `DiscountTypeConverter` (PERCENT→"P", FIXED→"F") с `@Converter(autoApply = true)` — поле без аннотаций; `MoneyTextConverter` ("сумма валюта") — `Money` в одной текстовой колонке `total` через `@Convert`; вложенный `@Embeddable com.example.jpalab.entity.PriceRange` (`min`/`max` — `Money`, `@AttributeOverrides` внутри класса: `min_*`/`max_*`) + `@Embedded` в `Offer`; `@AttributeOverride` с атрибутами `@Column` (base_currency — VARCHAR(3) NOT NULL); JPQL-сумма по пути вложенного типа (`basePrice.amount` / `basePrice.currency`, пустое множество → NULL). Артефакт — методы `OfferService`, аннотации на `Offer`, конвертеры и `PriceRange`, созданные студентом (тесты находят поля/классы студента рефлексивно: `TaskTestSupport.newInstance` + сеттеры по имени, состояние БД — native-SELECT и `INFORMATION_SCHEMA`).
 
-- 18. Продвинутый маппинг типов (@Embedded, @Convert/@Converter, EnumType, составные ключи)
+## Планируемые темы (19–27) — ВНЕ текущего скоупа
+Задания и тесты для этих тем в текущем релизе НЕ создаются (скоуп — ровно 180 заданий тем 01–18). Перечень плановый, порядок может меняться:
+
 - 19. Полный маппинг коллекций (остаток после темы 15: `@OrderColumn`, колонки индекса List, `@MapKeyType`/`@MapKeyEnumerated`, ordered-коллекции)
 - 20. Querydsl (типобезопасный DSL)
 - 21. Транзакции в JPA (уровни изоляции, propagation, savepoints, длинные транзакции)
@@ -152,9 +157,10 @@ Bean Validation на flush (не на setter), `@Size` на сущностях, 
 - Тема 15 (@ElementCollection) **не выходит за границы**: только коллекции простых значений (`Set<String>`, `Map<String, String>`) — без `@OneToMany`/`@ManyToMany` (это темы 05–06), без отдельных сущностей для элементов коллекций, без `@OrderColumn`/`@MapKeyType` (плановая тема 19), без повторения тем 05–07 и «Продвинутый маппинг типов» (тема 18); поиск по элементам — JPQL/HQL без Criteria API (тема 14) и Specification (тема 13).
 - Тема 16 (@ManyToMany) **не выходит за границы**: только ассоциация `@ManyToMany` между `Product` и `Tag` — без `@ElementCollection` (тема 15), без дублирования `@ManyToOne` (тема 05) и `@OneToMany` (тема 06); общий N+1 — тема 07, здесь N+1 только в контексте коллекции `@ManyToMany`; без `@OneToOne`, наследования, `@OrderColumn`/индексации коллекций.
 - Тема 17 (наследование) **не выходит за границы**: только иерархия `BaseEntity → DigitalProduct / PhysicalProduct` и создаваемые студентом иерархии `vehicle` (JOINED) / `document` (TABLE_PER_CLASS) — сущность `Product` (темы 01–16) не меняется, без `@ElementCollection` (тема 15) и `@ManyToMany` (тема 16), без дублирования жизненного цикла (тема 11); без `EXCLUSIVE`/`READ`/`NONE`-дискриминаторов, `@SecondaryTable`, `@EmbeddedId`.
+- Тема 18 (embedded-типы и конвертеры) **не выходит за границы**: только `@Embeddable`/`@Embedded`, `@AttributeOverrides`/`@AttributeOverride`, `@Enumerated`, `AttributeConverter`/`@Convert`/`@Converter` на `Offer` и поле `Product.status` — без `@ElementCollection` (тема 15), без `@ManyToMany` (тема 16), без проекций и DTO (тема 10), без аудита (тема 12) и жизненного цикла (тема 11); без составных ключей (`@EmbeddedId`), `@SecondaryTable` и наследования (тема 17); `Product` меняется только добавлением поля `status`.
 - Тема 09 (bulk) и тема 12 не пересекаются: 09 — механика bulk-SQL и PC, 12 — семантика `@Version`/валидации; единственная стыковая точка (bulk не поднимает version) закреплена в задании 12/09.
 
 ## Важное (скоуп)
 - Проект покрывает практическую Spring Data JPA / Hibernate-часть курса, а не весь курс. За кадром: SQL-основы, JDBC, проектирование БД, кластеры и облачные БД.
-- Текущий релиз: ровно 17 тем × 10 заданий = 170 заданий, 170 заранее созданных тестов. Тем 18–27 в репозитории нет и их не создавать без отдельного запроса.
+- Текущий релиз: ровно 18 тем × 10 заданий = 180 заданий, 180 заранее созданных тестов. Тем 19–27 в репозитории нет и их не создавать без отдельного запроса.
 - `answers/` не создаётся; каждое задание проверяется unit-тестом.
